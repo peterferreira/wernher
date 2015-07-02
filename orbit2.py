@@ -15,6 +15,7 @@ arctan = np.arctan
 arctan2 = np.arctan2
 sinh = np.sinh
 cosh = np.cosh
+arctanh = np.arctanh
 
 from .celestial_body import CelestialBody
 from .locked_property import locked_property, property_alias, LockError
@@ -87,8 +88,8 @@ class Orbit(object):
     T      = property_alias('period')
     ap_alt = property_alias('apoapsis_altitude')
     pe_alt = property_alias('periapsis_altitude')
-    v_ap   = property_alias('speed_at_apoapsis')
-    v_pe   = property_alias('speed_at_periapsis')
+    vap    = property_alias('speed_at_apoapsis')
+    vpe    = property_alias('speed_at_periapsis')
 
     def __init__(self,**kwargs):
         if 'body' in kwargs:
@@ -128,6 +129,13 @@ class Orbit(object):
             return e
 
         def _4(self):
+            h = self.specific_angular_momentum
+            pe = self.periapsis
+            μ = self.body.gravitational_parameter
+            e = h**2 / (μ * pe) - 1
+            return e
+
+        def _5(self):
             otype = self.orbit_type
             if otype is circular:
                 e = 0
@@ -146,11 +154,16 @@ class Orbit(object):
                 try:
                     e = _3(self)
                 except LockError:
-                    e = _4(self)
+                    try:
+                        e = _4(self)
+                    except LockError:
+                        e = _5(self)
         return e
 
     @locked_property
     def semi_major_axis(self):
+        if self.orbit_type is parabolic:
+            raise LockError
         try:
             e = self.eccentricity
             h = self.specific_angular_momentum
@@ -177,13 +190,18 @@ class Orbit(object):
                 h = sqrt(pe * μ * (1 + e))
             except LockError:
                 try:
-                    vt = self.tangent_speed_at_epoch
-                    r = self.radius_at_epoch
-                    h = vt * r
+                    pe = self.periapsis
+                    vpe = self.speed_at_periapsis
+                    h = pe * vpe
                 except LockError:
-                    p,q = self.perifocal_position_at_epoch
-                    vp,vq = self.perifocal_velocity_at_epoch
-                    h = (p * vq) - (q * vp)
+                    try:
+                        vt = self.tangent_speed_at_epoch
+                        r = self.radius_at_epoch
+                        h = vt * r
+                    except LockError:
+                        p,q = self.perifocal_position_at_epoch
+                        vp,vq = self.perifocal_velocity_at_epoch
+                        h = (p * vq) - (q * vp)
         return h
 
     @locked_property
@@ -215,6 +233,7 @@ class Orbit(object):
                 if vr < 0:
                     θ = 2*π - θ
             except LockError:
+                '''not enough info to pick out quadrant'''
                 pass
 
         return θ
@@ -288,9 +307,17 @@ class Orbit(object):
             a = self.semi_major_axis
             pe = a * (1 - e)
         except LockError:
-            pe_alt = self.periapsis_altitude
-            R = self.body.equatorial_radius
-            pe = pe_alt + R
+            try:
+                pe_alt = self.periapsis_altitude
+                R = self.body.equatorial_radius
+                pe = pe_alt + R
+            except LockError:
+                if self.orbit_type is parabolic:
+                    vpe = self.speed_at_periapsis
+                    μ = self.body.gravitational_parameter
+                    pe = 2 * μ / vpe**2
+                else:
+                    raise LockError
         return pe
 
     @locked_property
@@ -320,7 +347,7 @@ class Orbit(object):
     def speed_at_epoch(self):
         try:
             r = self.radius_at_epoch
-            v = self.speed(r)
+            v = self.speed_at_radius(r)
         except LockError:
             try:
                 vx,vy = self.velocity_at_epoch
@@ -484,10 +511,30 @@ class Orbit(object):
         θ = arccos(((h**2 / (μ * r)) - 1) / e)
         return θ
 
-    def speed(self,r):
+    def speed_at_radius(self,r):
         a = self.semi_major_axis
         μ = self.body.gravitational_parameter
         v = sqrt(2*((-μ/(2*a)) + (μ/r)))
+        return v
+
+    def tangent_speed_at_time(self,t):
+        h = self.specific_angular_momentum
+        r = self.radius_at_time(t)
+        vt = h / r
+        return vt
+
+    def radial_speed_at_time(self,t):
+        e = self.eccentricity
+        h = self.specific_angular_momentum
+        μ = self.body.gravitational_parameter
+        θ = self.true_anomaly_at_time(t)
+        vr = (μ / h) * e * sin(θ)
+        return vr
+
+    def speed_at_time(self,t):
+        vr = self.radial_speed_at_time(t)
+        vt = self.tangent_speed_at_time(t)
+        v = sqrt(vt**2 + vr**2)
         return v
 
     def flight_path_angle_at_true_anomaly(self,θ):
@@ -504,6 +551,11 @@ class Orbit(object):
         h = self.specific_angular_momentum
         μ = self.body.gravitational_parameter
         r = (h**2 / μ) * (1 / (1 + e * cos(θ)))
+        return r
+
+    def radius_at_time(self,t):
+        θ = self.true_anomaly_at_time(t)
+        r = self.radius_at_true_anomaly(θ)
         return r
 
     def position_at_true_anomaly(self,θ):
@@ -544,9 +596,17 @@ class Orbit(object):
         return vx,vy
 
     def mean_anomaly_at_true_anomaly(self,θ):
-        e = self.eccentricity
-        E = self.eccentric_anomaly_at_true_anomaly(θ)
-        M = E - ((e*sqrt(1-e**2)*sin(θ)) / (1+e*cos(θ)))
+        otype = self.orbit_type
+        if otype.isclosed:
+            e = self.eccentricity
+            E = self.eccentric_anomaly_at_true_anomaly(θ)
+            M = E - ((e*sqrt(1-e**2)*sin(θ)) / (1+e*cos(θ)))
+        elif otype is parabolic:
+            M = (1/2) * tan(θ/2) + (1/6) * tan(θ/2)**3
+        elif otype is hyperbolic:
+            e = self.eccentricity
+            E = self.eccentric_anomaly_at_true_anomaly(θ)
+            M = e * sinh(E) - E
         return M
 
     def mean_anomaly_at_eccentric_anomaly(self,E):
@@ -562,8 +622,19 @@ class Orbit(object):
     def mean_anomaly_at_time(self,t):
         t0 = self.epoch
         M0 = self.mean_anomaly_at_epoch
-        n = self.mean_motion
-        M = M0 + n * (t - t0)
+        otype = self.orbit_type
+        if otype.isclosed:
+            n = self.mean_motion
+            M = M0 + n * (t - t0)
+        elif otype is parabolic:
+            h = self.specific_angular_momentum
+            μ = self.body.gravitational_parameter
+            M = (μ**2 / h**3) * (t - t0)
+        elif otype is hyperbolic:
+            e = self.eccentricity
+            h = self.specific_angular_momentum
+            μ = self.body.gravitational_parameter
+            M = (μ**2 / h**3) * (e**2 - 1)**(3/2) * (t - t0)
         return M
 
     def eccentric_anomaly_at_mean_anomaly(self,M):
@@ -594,8 +665,13 @@ class Orbit(object):
         return E
 
     def eccentric_anomaly_at_true_anomaly(self,θ):
-        e = self.eccentricity
-        E = 2 * arctan2(sqrt(1-e)*sin(θ/2),sqrt(1+e)*cos(θ/2))
+        otype = self.orbit_type
+        if otype.isclosed:
+            e = self.eccentricity
+            E = 2 * arctan2(sqrt(1-e)*sin(θ/2),sqrt(1+e)*cos(θ/2))
+        else:
+            e = self.eccentricity
+            E = 2 * arctanh(sqrt((e-1)/(e+1)) * tan(θ/2))
         return E
 
     def true_anomaly_at_time(self,t):
@@ -609,15 +685,29 @@ class Orbit(object):
             θ = π - 2 * arctan2(sqrt(1-e) * cos(E/2),
                                 sqrt(1+e) * sin(E/2))
         elif otype is parabolic:
-            pass
+            M = self.mean_anomaly_at_time(t)
+            θ = 2 * arctan(
+                (3*M + sqrt((3*M)**2 + 1))**(1/3)
+              - (3*M + sqrt((3*M)**2 + 1))**(-1/3) )
         elif otype is hyperbolic:
-            pass
+            e = self.eccentricity
+            F = self.eccentric_anomaly_at_time(t)
+            θ = 2 * arctan2(sqrt(e+1) * sinh(F/2),
+                            sqrt(e-1) * cosh(F/2))
         return θ
 
     def time_at_true_anomaly(self,θ):
-        T = self.period
-        M = self.mean_anomaly_at_true_anomaly(θ)
-        t = (M / (2*π)) * T
+        otype = self.orbit_type
+        if otype.isclosed:
+            T = self.period
+            M = self.mean_anomaly_at_true_anomaly(θ)
+            t = (M / (2*π)) * T
+        else:
+            h = self.specific_angular_momentum
+            e = self.eccentricity
+            M = self.mean_anomaly_at_true_anomaly(θ)
+            μ = self.body.gravitational_parameter
+            t = (h**3 / (μ**2 * (e**2 - 1)**(3/2))) * M
         return t
 
     @staticmethod
@@ -641,4 +731,5 @@ class Orbit(object):
         R = body.equatorial_radius
         r1 = z1 + R
         r2 = z2 + R
-        return Orbit.from_radius_at_true_anomaly(r1,θ1,r2,θ2,body)
+        orbit = Orbit.from_radius_at_true_anomaly(r1,θ1,r2,θ2,body)
+        return orbit

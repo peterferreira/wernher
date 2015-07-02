@@ -4,6 +4,8 @@ import numpy as np
 from ksp.orbit2 import Orbit, OrbitType
 
 
+arctan2 = np.arctan2
+arccos = np.arccos
 sqrt = np.sqrt
 cos = np.cos
 
@@ -105,7 +107,7 @@ class TestOrbit(unittest.TestCase):
         rθ = o.radius_at_average_true_anomaly
         θ = o.true_anomaly_from_periapsis(r=rθ)
         self.isclose(θ/deg,96.09)
-        self.isclose(o.speed(r=rθ),6.970*km)
+        self.isclose(o.speed_at_radius(rθ),6.970*km)
         self.isclose(o.flight_path_angle_at_true_anomaly(θ)/deg,12.047)
         self.isclose(o.true_anomaly_at_semi_minor_axis/deg,102.113)
         self.isclose(o.flight_path_angle_max/deg,12.113)
@@ -325,6 +327,90 @@ class TestOrbit(unittest.TestCase):
         self.isclose(o.h,58458*km**2)
         self.isclose(o.a,9128*km)
         self.isclose(o.T,8679.1)
+
+        A = o.e
+        B = -(1-o.e**2) * o.a / o.body.equatorial_radius
+        C = -1
+        D = arctan2(B,A)
+        E = arccos((C/A) * cos(arctan2(B,A)))
+
+        θb = D + E
+        θc = D - E
+        θa = 2*π - θb
+        θd = 2*π - θc
+
+        self.isclose(θb,57.423*deg)
+        self.isclose(θc,-216.64*deg)
+
+        self.isclose(o.eccentric_anomaly_at_true_anomaly(θb),0.80521)
+        self.isclose(o.mean_anomaly_at_true_anomaly(θb),0.62749)
+
+        ta = o.time_at_true_anomaly(θa)
+        tb = o.time_at_true_anomaly(θb)
+        tc = o.time_at_true_anomaly(θc)
+        td = o.time_at_true_anomaly(θd)
+
+        self.isclose(tb,866.77)
+
+        self.isclose(o.T - (ta-tb), 1733.5)
+        self.isclose(td-tc, 2715.5)
+
+
+    def test_curtis_ex3_4(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+        o = Orbit(body=b,
+            orbit_type = OrbitType.parabolic,
+            vpe = 10*km,
+            θ0 = 0,
+            t0 = 0)
+
+        self.isclose(o.e,1)
+        self.isclose(o.pe,7972*km)
+        h = o.h
+        self.isclose(h,79720*km**2)
+        self.isclose(o.mean_anomaly_at_time(6*60*60),6.7737)
+
+        θ = o.true_anomaly_at_time(6*60*60)
+        self.isclose(θ,144.75*deg)
+
+        # possible (rounding?) error in book: 86899*km
+        self.isclose(o.radius_at_time(6*60*60),86976*km)
+
+
+    def test_curtis_ex3_5(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+        o = Orbit(body=b,
+            vpe = 15*km,
+            pe_alt = 300*km,
+            θ0 = 0,
+            t0 = 0)
+
+        θ = 100*deg
+
+        self.isclose(o.h,100170*km**2)
+        self.isclose(o.e,2.7696)
+        self.isclose(o.true_anomaly_at_infinity,111.17*deg)
+        self.isclose(o.radius_at_true_anomaly(θ),48497*km)
+        self.isclose(o.eccentric_anomaly_at_true_anomaly(θ),2.2927)
+        self.isclose(o.time_at_true_anomaly(θ),4141.4)
+
+        t0 = o.time_at_true_anomaly(θ)
+        t = t0 + 3*60*60
+
+        self.isclose(o.mean_anomaly_at_time(t),40.690)
+        self.isclose(o.eccentric_anomaly_at_time(t),3.4631)
+        self.isclose(o.true_anomaly_at_time(t),107.78*deg)
+        self.isclose(o.radius_at_time(t),163180*km)
+        self.isclose(o.tangent_speed_at_time(t),0.61386*km)
+        self.isclose(o.radial_speed_at_time(t),10.494*km)
+        self.isclose(o.speed_at_time(t),10.512*km)
+        self.isclose(o.speed_at_infinity,10.277*km)
+
+
 
 
 if __name__ == '__main__':
