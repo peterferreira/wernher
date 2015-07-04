@@ -21,6 +21,7 @@ from .celestial_body import CelestialBody
 from .locked_property import locked_property, property_alias, LockError
 from .orbit_type import OrbitType, circular, elliptic, hyperbolic, \
                         parabolic
+from .stumpff import stumpff_c, stumpff_s
 
 class Orbit(object):
     '''
@@ -200,7 +201,6 @@ class Orbit(object):
                 v = self.speed_at_epoch
                 μ = self.body.gravitational_parameter
                 a = 1 / (2/r - (v**2)/μ)
-
         return a
 
     @locked_property
@@ -646,6 +646,48 @@ class Orbit(object):
         vy = dfdθ * y0 + dgdθ * vy0
         return vx,vy
 
+    def universal_anomaly_at_time(self,t):
+        a = self.semi_major_axis
+        r0 = self.radius_at_epoch
+        vr0 = self.radial_speed_at_epoch
+        t0 = self.epoch
+        μ = self.body.gravitational_parameter
+
+        α = 1 / a
+
+        A = 1 - α * r0
+        B = r0 * vr0 / sqrt(μ)
+        C = r0
+        D = -sqrt(μ)
+        def f(t):
+            def _f(χ,α=α,t0=t0,A=A,B=B,C=C,D=D):
+                return A * χ**3 * stumpff_s(α * χ**2) \
+                     + B * χ**2 * stumpff_c(α * χ**2) \
+                     + C * χ \
+                     + D * (t - t0)
+            return _f
+
+        E = -r0 * vr0 * α / sqrt(μ)
+        F = 1 - α * r0
+        G = r0 * vr0 / sqrt(μ)
+        H = r0
+        def dfdχ(χ,α=α,E=E,F=F,G=G,H=H):
+            return E * χ**3 * stumpff_s(α * χ**2) \
+                 + F * χ**2 * stumpff_c(α * χ**2) \
+                 + G * χ \
+                 + H
+
+        def χ0(t,t0=t0):
+            return sqrt(μ) * abs(α) * (t - t0)
+
+        if hasattr(t,'__iter__'):
+            χ = np.array([opt.newton(f(_t),χ0(_t),fprime=dfdχ) \
+                          for _t in t])
+        else:
+            χ = opt.newton(f(t),χ0(t),fprime=dfdχ)
+
+        return χ
+
     def mean_anomaly_at_true_anomaly(self,θ):
         otype = self.orbit_type
         if otype.isclosed:
@@ -680,34 +722,39 @@ class Orbit(object):
         elif otype is parabolic:
             h = self.specific_angular_momentum
             μ = self.body.gravitational_parameter
-            M = (μ**2 / h**3) * (t - t0)
+            M = M0 + (μ**2 / h**3) * (t - t0)
         elif otype is hyperbolic:
             e = self.eccentricity
             h = self.specific_angular_momentum
             μ = self.body.gravitational_parameter
-            M = (μ**2 / h**3) * (e**2 - 1)**(3/2) * (t - t0)
+            M = M0 + (μ**2 / h**3) * (e**2 - 1)**(3/2) * (t - t0)
         return M
 
     def eccentric_anomaly_at_mean_anomaly(self,M):
         otype = self.orbit_type
         if otype is elliptic:
             e = self.eccentricity
-            def fn(E,e,M):
+            def f(E,M,e=e):
                 return E - e * sin(E) - M
+            def dfdE(E,M,e=e):
+                return 1 - e * cos(E)
             if hasattr(M,'__iter__'):
-                E = np.array([opt.newton(fn, π, args=(e,m)) for m in M])
+                E = np.array([opt.newton(f,π,args=(m,),fprime=dfdE) \
+                              for m in M])
             else:
-                E = opt.newton(fn, π, args=(e,M))
+                E = opt.newton(f,π,args=(M,),fprime=dfdE)
             return E
         elif otype.isopen:
             e = self.eccentricity
-            def fn(F,e,M):
+            def f(F,M,e=e):
                 return e * sinh(F) - F - M
+            def dfdF(F,M,e=e):
+                return e * cosh(F) - 1
             if hasattr(M,'__iter__'):
-                F = np.array([opt.brentq(fn, -2*π, 2*π, args=(e,m)) \
-                                 for m in M])
+                F = np.array([opt.newton(f,π,args=(m,),fprime=dfdF) \
+                              for m in M])
             else:
-                F = opt.brentq(fn, -2*π, 2*π, args=(e,M))
+                F = opt.newton(f,π,args=(M,),fprime=dfdF)
             return F
 
     def eccentric_anomaly_at_time(self,t):

@@ -445,18 +445,42 @@ class TestOrbit(unittest.TestCase):
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
-        e = o.eccentricity
-
-        self.isclose(e,1.4682)
+        self.isclose(o.e,1.4682)
 
         o = Orbit(body=b)
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
-        h = o.specific_angular_momentum
+        self.isclose(o.h,95154*km**2)
 
-        self.isclose(h,95154*km**2)
 
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        self.isclose(o.radial_speed_at_epoch,3.0752*km)
+
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        o.epoch = 0
+        self.isclose(o.eccentric_anomaly_at_time(0),0.23448)
+
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        o.epoch = 0
+        self.isclose(o.a,-19655*km)
+
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        o.epoch = 0
+
+        self.isclose(o.universal_anomaly_at_time(3600),128.51*km**0.5)
 
 
 if __name__ == '__main__':
