@@ -146,12 +146,21 @@ class TestOrbit(unittest.TestCase):
         θ2 = 58*deg
 
         o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
-
         self.isclose(o.e,0.08164)
+
+        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
         self.isclose(o.h,54830*km**2)
+
+        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
         self.isclose(o.pe,6974*km)
+
+        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
         self.isclose(o.pe_alt,595.5*km)
+
+        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
         self.isclose(o.a,7593*km)
+
+        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
         self.isclose(o.T,1.8291*h)
 
 
@@ -216,6 +225,11 @@ class TestOrbit(unittest.TestCase):
         self.isclose(p,-5312.7*km)
         self.isclose(q,9201.9*km)
 
+        o = Orbit(body=b)
+        o.e = 0.3
+        o.h = 60000*km**2
+        o.θ0 = 120*deg
+
         vp,vq = o.perifocal_velocity_at_epoch
         self.isclose(vp,-5.7533*km)
         self.isclose(vq,-1.3287*km)
@@ -225,13 +239,24 @@ class TestOrbit(unittest.TestCase):
             equatorial_radius = 6378*km,
             gravitational_parameter = 398600*km**3,
             )
+
         o = Orbit(body=b)
-        o.perifocal_position_at_epoch = (7000*km, 9000*km)
-        o.perifocal_velocity_at_epoch = (-5*km, 7*km)
+        o.position_at_epoch = (7000*km, 9000*km)
+        o.velocity_at_epoch = (-5*km, 7*km)
+
+        self.isclose(o.e, 1.1077)
+        self.isclose(o.h,94000*km**2)
+        self.isclose(o.pe,10517.5*km)
+        self.isclose(o.radius_at_epoch,11401.8*km)
+        self.isclose(o.θ0,31.5224*deg)
+        self.isclose(o.speed_at_epoch,8.6023*km)
+
+        o = Orbit(body=b)
+        o.position_at_epoch = (7000*km, 9000*km)
+        o.velocity_at_epoch = (-5*km, 7*km)
 
         self.isclose(o.h,94000*km**2)
-        self.isclose(o.θ0,52.125*deg)
-        self.isclose(o.e,1.538)
+        self.isclose(o.e, 1.1077)
 
         self.assertTrue(o.orbit_type is OrbitType.hyperbolic)
 
@@ -410,6 +435,27 @@ class TestOrbit(unittest.TestCase):
         self.isclose(o.speed_at_time(t),10.512*km)
         self.isclose(o.speed_at_infinity,10.277*km)
 
+
+    def test_curtis_ex3_6(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        e = o.eccentricity
+
+        self.isclose(e,1.4682)
+
+        o = Orbit(body=b)
+        o.true_anomaly_at_epoch = 30*deg
+        o.radius_at_epoch = 10000*km
+        o.speed_at_epoch = 10*km
+        h = o.specific_angular_momentum
+
+        self.isclose(h,95154*km**2)
 
 
 

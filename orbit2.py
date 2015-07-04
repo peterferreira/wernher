@@ -97,6 +97,14 @@ class Orbit(object):
         for k,v in kwargs.items():
             setattr(self,k,v)
 
+    def _try_calc(self,fnlist):
+        try:
+            return fnlist.pop(0)(self)
+        except LockError:
+            return self._try_calc(fnlist)
+        except IndexError:
+            raise LockError from None
+
     @locked_property
     def orbit_type(self):
         e = self.eccentricity
@@ -136,52 +144,74 @@ class Orbit(object):
             return e
 
         def _5(self):
+            r = self.radius_at_epoch
+            v = self.speed_at_epoch
+            θ = self.true_anomaly_at_epoch
+            μ = self.body.gravitational_parameter
+
+            # solving for e:
+            # A * e^2 + B * e + C = 0
+            A = μ / r
+            B = (2 * μ / r - v**2) * cos(θ)
+            C =  μ / r - v**2
+
+            if (B**2 - 4*A*C) < 0:
+                raise LockError
+
+            x = -B / (2*A)
+            y = sqrt(B**2 - 4*A*C) / (2*A)
+
+            if y > 0:
+                e = x + y
+            else:
+                e = x - y
+
+            return e
+
+        def _6(self):
             otype = self.orbit_type
             if otype is circular:
                 e = 0
             elif otype is parabolic:
                 e = 1
             else:
-                raise LockError
+                raise LockError from None
             return e
 
-        try:
-            e = _1(self)
-        except LockError:
-            try:
-                e = _2(self)
-            except LockError:
-                try:
-                    e = _3(self)
-                except LockError:
-                    try:
-                        e = _4(self)
-                    except LockError:
-                        e = _5(self)
+        e = self._try_calc([_1,_2,_3,_4,_5,_6])
         return e
 
     @locked_property
     def semi_major_axis(self):
         if self.orbit_type is parabolic:
-            raise LockError
+            return inf
         try:
             e = self.eccentricity
             h = self.specific_angular_momentum
             μ = self.body.gravitational_parameter
             a = h**2 / (μ * (1 - e**2))
         except LockError:
-            pe = self.periapsis
-            ap = self.apoapsis
-            a = (pe + ap) / 2
+            try:
+                pe = self.periapsis
+                ap = self.apoapsis
+                a = (pe + ap) / 2
+            except LockError:
+                r = self.radius_at_epoch
+                v = self.speed_at_epoch
+                μ = self.body.gravitational_parameter
+                a = 1 / (2/r - (v**2)/μ)
+
         return a
 
     @locked_property
     def specific_angular_momentum(self):
         try:
+            if self.orbit_type is parabolic:
+                raise LockError from None
             e = self.eccentricity
             a = self.semi_major_axis
             μ = self.body.gravitational_parameter
-            h = sqrt(a * μ * abs(1 - e**2))
+            h = sqrt(abs(a) * μ * abs(1 - e**2))
         except LockError:
             try:
                 pe = self.periapsis
@@ -233,18 +263,23 @@ class Orbit(object):
                 if vr < 0:
                     θ = 2*π - θ
             except LockError:
-                '''not enough info to pick out quadrant'''
-                pass
+                try:
+                    p,q = self.perifocal_position_at_epoch
+                    if q < 0:
+                        θ = 2*π - θ
+                except LockError:
+                    '''not enough info to pick out quadrant'''
+                    pass
 
         return θ
 
     @locked_property
     def position_at_epoch(self):
-        raise LockError
+        raise LockError from None
 
     @locked_property
     def velocity_at_epoch(self):
-        raise LockError
+        raise LockError from None
 
     @locked_property
     def tangent_speed_at_epoch(self):
@@ -275,6 +310,8 @@ class Orbit(object):
     @locked_property
     def radius_at_epoch(self):
         try:
+            if self.orbit_type is parabolic:
+                raise LockError from None
             e = self.eccentricity
             a = self.semi_major_axis
             θ = self.true_anomaly_at_epoch
@@ -291,6 +328,8 @@ class Orbit(object):
     @locked_property
     def apoapsis(self):
         try:
+            if self.orbit_type is parabolic:
+                raise LockError from None
             e = self.eccentricity
             a = self.semi_major_axis
             ap = a * (1 + e)
@@ -303,6 +342,8 @@ class Orbit(object):
     @locked_property
     def periapsis(self):
         try:
+            if self.orbit_type is parabolic:
+                raise LockError from None
             e = self.eccentricity
             a = self.semi_major_axis
             pe = a * (1 - e)
@@ -317,7 +358,7 @@ class Orbit(object):
                     μ = self.body.gravitational_parameter
                     pe = 2 * μ / vpe**2
                 else:
-                    raise LockError
+                    raise LockError from None
         return pe
 
     @locked_property
@@ -359,6 +400,8 @@ class Orbit(object):
 
     @locked_property
     def speed_at_periapsis(self):
+        if self.orbit_type is parabolic:
+            raise LockError from None
         a = self.semi_major_axis
         pe = self.periapsis
         μ = self.body.gravitational_parameter
@@ -367,6 +410,8 @@ class Orbit(object):
 
     @locked_property
     def speed_at_apoapsis(self):
+        if self.orbit_type.isopen:
+            return nan
         a = self.semi_major_axis
         ap = self.apoapsis
         μ = self.body.gravitational_parameter
@@ -375,6 +420,8 @@ class Orbit(object):
 
     @locked_property
     def radius_at_average_true_anomaly(self):
+        if self.orbit_type is parabolic:
+            raise LockError from None
         a = self.semi_major_axis
         e = self.eccentricity
         r = a * sqrt(1 - e**2)
@@ -410,8 +457,10 @@ class Orbit(object):
 
     @locked_property
     def speed_at_infinity(self):
-        if self.orbit_type is not hyperbolic:
+        if self.orbit_type.isclosed:
             return nan
+        elif self.orbit_type is parabolic:
+            return 0
         a = self.semi_major_axis
         μ = self.body.gravitational_parameter
         v = sqrt(μ / -a)
@@ -443,7 +492,7 @@ class Orbit(object):
         Δ = -a * sqrt(e**2 - 1)
         return Δ
 
-    @locked_property
+    @property
     def perifocal_position_at_epoch(self):
         e = self.eccentricity
         h = self.specific_angular_momentum
@@ -454,7 +503,7 @@ class Orbit(object):
         q = x * sin(θ)
         return p,q
 
-    @locked_property
+    @property
     def perifocal_velocity_at_epoch(self):
         e = self.eccentricity
         h = self.specific_angular_momentum
@@ -512,6 +561,8 @@ class Orbit(object):
         return θ
 
     def speed_at_radius(self,r):
+        if self.orbit_type is parabolic:
+            raise LockError from None
         a = self.semi_major_axis
         μ = self.body.gravitational_parameter
         v = sqrt(2*((-μ/(2*a)) + (μ/r)))
