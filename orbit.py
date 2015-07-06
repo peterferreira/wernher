@@ -28,15 +28,14 @@ class Orbit(object):
     '''
     Fundamental Elements
                 orbit_type
-        e       eccentricity
         i       inclination
         Ω       longitude_of_ascending_node
         ω       argument_of_periapsis
+        e       eccentricity
         a       semi_major_axis
         h       specific_angular_momentum
         M0      mean_anomaly_at_epoch
         θ0      true_anomaly_at_epoch
-        χ0      universal_anomaly_at_epoch
 
     State Vectors
         x0      position_at_epoch
@@ -46,23 +45,75 @@ class Orbit(object):
         t0  epoch
 
     Intermediate Parameters
+        ϖ       longitude_of_periapsis
+        T       period
+        n       mean_motion
+        δ       turn_angle
+        b       impact_parameter
+        Δ       aiming_radius
+        γ0      flight_path_angle_at_epoch
+
         r0      radius_at_epoch
         b       semi_minor_axis
         ap      apoapsis
         pe      periapsis
-        ϖ       longitude_of_periapsis
-        n       mean_motion
-        T       period
         ap_alt  apoapsis_altitude
         pe_alt  periapsis_altitude
+        r       radius_at_average_true_anomaly
+
+        (p0,q0)     perifocal_position_at_epoch
+        (vp0,vq0)   perifocal_velocity_at_epoch
+
+        v       speed_at_epoch
+        vr0     radial_speed_at_epoch
+        vt0     tangent_speed_at_epoch
         vap     speed_at_apoapsis
         vpe     speed_at_periapsis
+                speed_at_infinity
 
         P,Q,W   transform
+
+    Anomalies
+        χ       universal_anomaly_at_epoch
+                universal_anomaly_at_time(t)
+
+        θ       true_anomaly_at_epoch
+                true_anomaly_at_infinity
+                true_anomaly_at_semi_major_axis
+                true_anomaly_at_time(t)
+                true_anomaly_at_radius(r)
+                true_anomaly_from_periapsis(r)
+                true_anomaly_to_periapsis(r)
+
+        Μ       mean_anomaly_epoch
+                mean_anomaly_at_time(t)
+                mean_anomaly_at_true_anomaly(θ)
+                mean_anomaly_at_eccentric_anomaly(E)
+
+        Ε       eccentric_anomaly_at_epoch
+                eccentric_anomaly_at_time(t)
+                eccentric_anomaly_at_true_anomaly(θ)
+
+    Functions of time and anomalies
+        (x,y)   position_at_time(t)
+                position_at_true_anomaly(θ)
+        r       radius_at_time(t)
+                radius_at_true_anomaly(θ)
+
+        (vx,vy) velocity_at_time(t)
+                velocity_at_true_anomaly(θ)
+        v       speed_at_time(t)
+                speed_at_radius(r)
+        vr      radial_speed_at_time(t)
+        vt      tangent_speed_at_time(t)
+
+        t       time_at_true_anomaly(θ)
 
     Celestial Body
         R       equatorial_radius
         μ       gravitational_parameter
+
+
 
     '''
     # Fundamental Elements
@@ -74,7 +125,6 @@ class Orbit(object):
     h      = property_alias('specific_angular_momentum')
     M0     = property_alias('mean_anomaly_at_epoch')
     θ0     = property_alias('true_anomaly_at_epoch')
-    χ0     = property_alias('univeral_anomaly_at_epoch')
 
     # State Vectors
     x0     = property_alias('position_at_epoch')
@@ -352,22 +402,17 @@ class Orbit(object):
     def periapsis(self):
         try:
             if self.orbit_type is parabolic:
-                raise LockError from None
-            e = self.eccentricity
-            a = self.semi_major_axis
-            pe = a * (1 - e)
+                vpe = self.speed_at_periapsis
+                μ = self.body.gravitational_parameter
+                pe = 2 * μ / vpe**2
+            else:
+                e = self.eccentricity
+                a = self.semi_major_axis
+                pe = a * (1 - e)
         except LockError:
-            try:
-                pe_alt = self.periapsis_altitude
-                R = self.body.equatorial_radius
-                pe = pe_alt + R
-            except LockError:
-                if self.orbit_type is parabolic:
-                    vpe = self.speed_at_periapsis
-                    μ = self.body.gravitational_parameter
-                    pe = 2 * μ / vpe**2
-                else:
-                    raise LockError from None
+            pe_alt = self.periapsis_altitude
+            R = self.body.equatorial_radius
+            pe = pe_alt + R
         return pe
 
     @locked_property
