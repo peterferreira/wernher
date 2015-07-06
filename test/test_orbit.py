@@ -1,8 +1,7 @@
 import unittest
 
 import numpy as np
-from ksp.orbit2 import Orbit, OrbitType
-
+from ksp.orbit import Orbit, OrbitType
 
 arctan2 = np.arctan2
 arccos = np.arccos
