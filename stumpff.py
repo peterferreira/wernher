@@ -41,7 +41,7 @@ def stumpff_s(z):
             return (sinh(sqrt_neg_z) - sqrt_neg_z) / sqrt_neg_z**3
         elif z > 0:
             sqrt_z = sqrt(z)
-            return (sinh(sqrt_z) - sqrt_z) / sqrt_z**3
+            return (sqrt_z - sin(sqrt_z)) / sqrt_z**3
         else:
             return 1/6
 

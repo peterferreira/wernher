@@ -442,12 +442,16 @@ class TestOrbit(unittest.TestCase):
             gravitational_parameter = 398600*km**3)
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
         self.isclose(o.e,1.4682)
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
@@ -455,32 +459,78 @@ class TestOrbit(unittest.TestCase):
 
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
         self.isclose(o.radial_speed_at_epoch,3.0752*km)
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
-        o.epoch = 0
         self.isclose(o.eccentric_anomaly_at_time(0),0.23448)
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
-        o.epoch = 0
         self.isclose(o.a,-19655*km)
 
         o = Orbit(body=b)
+        o.epoch = 0
+        o.universal_anomaly_at_epoch = 0
         o.true_anomaly_at_epoch = 30*deg
         o.radius_at_epoch = 10000*km
         o.speed_at_epoch = 10*km
-        o.epoch = 0
 
         self.isclose(o.universal_anomaly_at_time(3600),128.51*km**0.5)
+
+
+
+    def test_curtis_ex3_7(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+
+        o = Orbit(body=b)
+        o.epoch = 0
+        o.position_at_epoch = (7000*km,-12124*km)
+        o.velocity_at_epoch = (2.6679*km,4.6210*km)
+
+        t = 60*60
+
+        self.isclose(o.radius_at_epoch, 14000*km)
+        self.isclose(o.speed_at_epoch, 5.3359*km)
+        self.isclose(o.radial_speed_at_epoch, -2.6679*km)
+        self.isclose(o.semi_major_axis, 13999*km)
+        self.isclose(1/o.semi_major_axis, 7.1429e-5 / km)
+
+        self.isclose(o.universal_anomaly_at_time(t), 253.53*km**0.5)
+
+        f,g,dfdχ,dgdχ = o.lagrange_coefficients_at_time(t)
+
+        self.isclose(f,-0.54123)
+        self.isclose(g,184.13)
+        self.isclose(dfdχ,-0.00055298)
+        self.isclose(dgdχ,-1.6593)
+
+        r = o.radius_at_time(t)
+        x = o.position_at_time(t)
+        v = o.velocity_at_time(t)
+
+        self.isclose(r,8113.9*km)
+        self.isclose(x[0],-3297.8*km)
+        self.isclose(x[1],7413.9*km)
+        self.isclose(v[0],-8.2977*km)
+        self.isclose(v[1],-0.96404*km)
+
+
 
 
 if __name__ == '__main__':

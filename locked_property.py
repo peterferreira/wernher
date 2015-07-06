@@ -1,3 +1,5 @@
+import numpy as np
+
 class LockError(Exception):
     def __init__(self,call_stack=None):
         if call_stack is not None:
@@ -19,15 +21,14 @@ class OverspecifiedError(Exception):
     def __str__(self):
         return 'Overspecified with \''+self.property_name+'\'.'
 
-class locked_property(object):
+class cached_property(object):
     """
     A read-only @property that is only evaluated once.
-    And can only be entered once (locked).
     """
     def __init__(self, fget, doc=None):
         self.__doc__ = doc or fget.__doc__
         self.__name__ = fget.__name__
-        self.locked_fget = self.lock(fget)
+        self.fget = fget
 
     def __get__(self, obj, cls):
         if obj is None:
@@ -35,18 +36,9 @@ class locked_property(object):
         if not hasattr(obj,'_calculated_properties'):
             obj._calculated_properties = list()
         if self.__name__ not in obj.__dict__:
-            obj.__dict__[self.__name__] = self.locked_fget(obj)
+            obj.__dict__[self.__name__] = self.fget(obj)
             obj._calculated_properties.append(self.__name__)
         return obj.__dict__[self.__name__]
-
-    def __set__(self, obj, val):
-        if self.__name__ in obj.__dict__:
-            self.__delete__(obj)
-        try:
-            getattr(obj,self.__name__)
-            raise OverspecifiedError(self.__name__)
-        except LockError:
-            obj.__dict__[self.__name__] = val
 
     def __delete__(self, obj):
         if hasattr(obj,'_calculated_properties'):
@@ -55,6 +47,27 @@ class locked_property(object):
                     del obj.__dict__[p]
             obj._calculated_properties.clear()
         del obj.__dict__[self.__name__]
+
+class locked_property(cached_property):
+    """
+    A read-only @property that is only evaluated once.
+    And can only be entered once (locked).
+    """
+    def __init__(self, fget, doc=None):
+        self.__doc__ = doc or fget.__doc__
+        self.__name__ = fget.__name__
+        self.fget = self.lock(fget)
+
+    def __set__(self, obj, val):
+        if self.__name__ in obj.__dict__:
+            self.__delete__(obj)
+        try:
+            getattr(obj,self.__name__)
+            raise OverspecifiedError(self.__name__)
+        except LockError:
+            if hasattr(val,'__iter__'):
+                val = np.asarray(val)
+            obj.__dict__[self.__name__] = val
 
     def lock(self,fn):
         def locked_fget(obj):

@@ -18,7 +18,8 @@ cosh = np.cosh
 arctanh = np.arctanh
 
 from .celestial_body import CelestialBody
-from .locked_property import locked_property, property_alias, LockError
+from .locked_property import cached_property, locked_property, \
+                             property_alias, LockError
 from .orbit_type import OrbitType, circular, elliptic, hyperbolic, \
                         parabolic
 from .stumpff import stumpff_c, stumpff_s
@@ -35,6 +36,7 @@ class Orbit(object):
         h       specific_angular_momentum
         M0      mean_anomaly_at_epoch
         θ0      true_anomaly_at_epoch
+        χ0      universal_anomaly_at_epoch
 
     State Vectors
         x0      position_at_epoch
@@ -72,15 +74,17 @@ class Orbit(object):
     h      = property_alias('specific_angular_momentum')
     M0     = property_alias('mean_anomaly_at_epoch')
     θ0     = property_alias('true_anomaly_at_epoch')
+    χ0     = property_alias('univeral_anomaly_at_epoch')
 
     # State Vectors
-    r0     = property_alias('position_at_epoch')
+    x0     = property_alias('position_at_epoch')
     v0     = property_alias('velocity_at_epoch')
 
     # Reference Frame Parameters
     t0     = property_alias('epoch')
 
     # Intermediate Parameters
+    r0     = property_alias('radius_at_epoch')
     b      = property_alias('semi_minor_axis')
     ap     = property_alias('apoapsis')
     pe     = property_alias('periapsis')
@@ -130,11 +134,11 @@ class Orbit(object):
             return e
 
         def _3(self):
-            h = self.specific_angular_momentum
             r = self.radius_at_epoch
-            vr = self.radial_speed_at_epoch
+            v = self.speed_at_epoch
+            vt = self.tangent_speed_at_epoch
             μ = self.body.gravitational_parameter
-            e = sqrt((vr * h / μ)**2 + (h**2 / (μ * r) - 1)**2)
+            e = sqrt(1 + (r * vt**2 / μ) * ((r * v**2 / μ) - 2))
             return e
 
         def _4(self):
@@ -233,6 +237,12 @@ class Orbit(object):
                         vp,vq = self.perifocal_velocity_at_epoch
                         h = (p * vq) - (q * vp)
         return h
+
+    @locked_property
+    def universal_anomaly_at_epoch(self):
+        t0 = self.epoch
+        χ0 = self.universal_anomaly_at_time(t0)
+        return χ0
 
     @locked_property
     def mean_anomaly_at_epoch(self):
@@ -492,26 +502,10 @@ class Orbit(object):
         Δ = -a * sqrt(e**2 - 1)
         return Δ
 
-    @property
-    def perifocal_position_at_epoch(self):
-        e = self.eccentricity
-        h = self.specific_angular_momentum
-        θ = self.true_anomaly_at_epoch
-        μ = self.body.gravitational_parameter
-        x = h**2 / (μ * (1 + e * cos(θ)))
-        p = x * cos(θ)
-        q = x * sin(θ)
-        return p,q
-
-    @property
-    def perifocal_velocity_at_epoch(self):
-        e = self.eccentricity
-        h = self.specific_angular_momentum
-        θ = self.true_anomaly_at_epoch
-        μ = self.body.gravitational_parameter
-        vp = - (μ / h) * sin(θ)
-        vq = (μ / h) * (e + cos(θ))
-        return vp,vq
+    @locked_property
+    def mean_motion(self):
+        T = self.period
+        return 2*π / T
 
     ### tranformation vectors to Cartesian coordinates
     @locked_property
@@ -540,6 +534,32 @@ class Orbit(object):
         Q = np.array(Q)
         W = np.array(W)
         return (P,Q,W)
+
+    @cached_property
+    def lagrange_coefficients_at_epoch(self):
+        t0 = self.epoch
+        return lagrange_coefficients_at_time(t0)
+
+    @cached_property
+    def perifocal_position_at_epoch(self):
+        e = self.eccentricity
+        h = self.specific_angular_momentum
+        θ = self.true_anomaly_at_epoch
+        μ = self.body.gravitational_parameter
+        x = h**2 / (μ * (1 + e * cos(θ)))
+        p = x * cos(θ)
+        q = x * sin(θ)
+        return p,q
+
+    @cached_property
+    def perifocal_velocity_at_epoch(self):
+        e = self.eccentricity
+        h = self.specific_angular_momentum
+        θ = self.true_anomaly_at_epoch
+        μ = self.body.gravitational_parameter
+        vp = - (μ / h) * sin(θ)
+        vq = (μ / h) * (e + cos(θ))
+        return vp,vq
 
     def true_anomaly_from_periapsis(self,r):
         e = self.eccentricity
@@ -609,6 +629,14 @@ class Orbit(object):
         r = self.radius_at_true_anomaly(θ)
         return r
 
+    def position_at_time(self,t):
+        x0,y0 = self.position_at_epoch
+        vx0,vy0 = self.velocity_at_epoch
+        f,g,dfdχ,dgdχ = self.lagrange_coefficients_at_time(t)
+        x = f * x0 + g * vx0
+        y = f * y0 + g * vy0
+        return np.hstack([x,y])
+
     def position_at_true_anomaly(self,θ):
         h = self.specific_angular_momentum
         μ = self.body.gravitational_parameter
@@ -625,7 +653,15 @@ class Orbit(object):
 
         x = f * x0 + g * vx0
         y = f * y0 + g * vy0
-        return x,y
+        return np.hstack([x,y])
+
+    def velocity_at_time(self,t):
+        x0,y0 = self.position_at_epoch
+        vx0,vy0 = self.velocity_at_epoch
+        f,g,dfdχ,dgdχ = self.lagrange_coefficients_at_time(t)
+        vx = dfdχ * x0 + dgdχ * vx0
+        vy = dfdχ * y0 + dgdχ * vy0
+        return np.hstack([vx,vy])
 
     def velocity_at_true_anomaly(self,θ):
         h = self.specific_angular_momentum
@@ -644,13 +680,13 @@ class Orbit(object):
 
         vx = dfdθ * x0 + dgdθ * vx0
         vy = dfdθ * y0 + dgdθ * vy0
-        return vx,vy
+        return np.hstack([vx,vy])
 
     def universal_anomaly_at_time(self,t):
-        a = self.semi_major_axis
+        t0 = self.epoch
         r0 = self.radius_at_epoch
         vr0 = self.radial_speed_at_epoch
-        t0 = self.epoch
+        a = self.semi_major_axis
         μ = self.body.gravitational_parameter
 
         α = 1 / a
@@ -677,16 +713,42 @@ class Orbit(object):
                  + G * χ \
                  + H
 
-        def χ0(t,t0=t0):
+        def χinit(t,t0=t0):
             return sqrt(μ) * abs(α) * (t - t0)
 
         if hasattr(t,'__iter__'):
-            χ = np.array([opt.newton(f(_t),χ0(_t),fprime=dfdχ) \
+            χ = np.array([opt.newton(f(_t),χinit(_t),fprime=dfdχ) \
                           for _t in t])
         else:
-            χ = opt.newton(f(t),χ0(t),fprime=dfdχ)
+            χ = opt.newton(f(t),χinit(t),fprime=dfdχ)
 
         return χ
+
+    def lagrange_coefficients_at_time(self,t):
+        t0 = self.epoch
+        r0 = self.radius_at_epoch
+        x0 = self.position_at_epoch
+        v0 = self.velocity_at_epoch
+        a = self.semi_major_axis
+        μ = self.body.gravitational_parameter
+        χ = self.universal_anomaly_at_time(t)
+
+        α = 1 / a
+        z = α * χ**2
+
+        cz = stumpff_c(z)
+        sz = stumpff_s(z)
+
+        f = 1 - (χ**2 / r0) * cz
+        g = (t - t0) - (1/sqrt(μ)) * χ**3 * sz
+
+        x = f * x0 + g * v0
+        r = sqrt(sum(x**2))
+
+        dfdχ = (sqrt(μ) / (r * r0)) * (α * χ**3 * sz - χ)
+        dgdχ = 1 - (χ**2 / r) * cz
+
+        return f,g,dfdχ,dgdχ
 
     def mean_anomaly_at_true_anomaly(self,θ):
         otype = self.orbit_type
@@ -707,10 +769,6 @@ class Orbit(object):
         M = E - e * sin(E)
         return M
 
-    @locked_property
-    def mean_motion(self):
-        T = self.period
-        return 2*π / T
 
     def mean_anomaly_at_time(self,t):
         t0 = self.epoch
