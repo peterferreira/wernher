@@ -11,7 +11,6 @@ cos = np.cos
 π = np.pi
 deg = π/180
 km = 1000
-h = 60*60
 
 class Bunch(dict):
     def __contains__(self, k):
@@ -81,6 +80,8 @@ class TestOrbit(unittest.TestCase):
             apoapsis_altitude = 4000*km,
             )
 
+        h = 60*60
+
         o = Orbit(**oe)
         self.isclose(o.eccentricity,0.2098)
 
@@ -138,6 +139,8 @@ class TestOrbit(unittest.TestCase):
             equatorial_radius = 6378*km,
             gravitational_parameter = 398600*km**3,
             )
+
+        h = 60*60
 
         z1 = 1545*km
         θ1 = 126*deg
@@ -240,8 +243,8 @@ class TestOrbit(unittest.TestCase):
             )
 
         o = Orbit(body=b)
-        o.position_at_epoch = (7000*km, 9000*km)
-        o.velocity_at_epoch = (-5*km, 7*km)
+        o.position_at_epoch = (7000*km, 9000*km, 0)
+        o.velocity_at_epoch = (-5*km, 7*km, 0)
 
         self.isclose(o.e, 1.1077)
         self.isclose(o.h,94000*km**2)
@@ -251,8 +254,8 @@ class TestOrbit(unittest.TestCase):
         self.isclose(o.speed_at_epoch,8.6023*km)
 
         o = Orbit(body=b)
-        o.position_at_epoch = (7000*km, 9000*km)
-        o.velocity_at_epoch = (-5*km, 7*km)
+        o.position_at_epoch = (7000*km, 9000*km, 0)
+        o.velocity_at_epoch = (-5*km, 7*km, 0)
 
         self.isclose(o.h,94000*km**2)
         self.isclose(o.e, 1.1077)
@@ -265,8 +268,8 @@ class TestOrbit(unittest.TestCase):
             gravitational_parameter = 398600*km**3,
             )
         o = Orbit(body=b)
-        o.position_at_epoch = (8182.4*km, -6865.9*km)
-        o.velocity_at_epoch = (0.47572*km, 8.8116*km)
+        o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
+        o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
 
         self.isclose(o.radius_at_epoch,10681*km) # 10861 in book (error)
         self.isclose(o.speed_at_epoch,8.8244*km)
@@ -285,17 +288,19 @@ class TestOrbit(unittest.TestCase):
             gravitational_parameter = 398600*km**3,
             )
         o = Orbit(body=b)
-        o.position_at_epoch = (8182.4*km, -6865.9*km)
-        o.velocity_at_epoch = (0.47572*km, 8.8116*km)
+        o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
+        o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
 
         θ0 = o.true_anomaly_at_epoch
 
-        x,y = o.position_at_true_anomaly(θ0 + 120*deg)
-        vx,vy = o.velocity_at_true_anomaly(θ0 + 120*deg)
+        x,y,z = o.position_at_true_anomaly(θ0 + 120*deg)
+        vx,vy,vz = o.velocity_at_true_anomaly(θ0 + 120*deg)
         self.isclose(x,1454.9*km)
         self.isclose(y,8251.6*km)
+        self.isclose(z,0)
         self.isclose(vx,-8.1323*km)
         self.isclose(vy,5.6785*km)
+        self.isclose(vz,0)
 
     def test_curtis_ex3_1(self):
         b = Bunch(
@@ -499,8 +504,8 @@ class TestOrbit(unittest.TestCase):
 
         o = Orbit(body=b)
         o.epoch = 0
-        o.position_at_epoch = (7000*km,-12124*km)
-        o.velocity_at_epoch = (2.6679*km,4.6210*km)
+        o.position_at_epoch = (7000*km,-12124*km,0)
+        o.velocity_at_epoch = (2.6679*km,4.6210*km,0)
 
         t = 60*60
 
@@ -526,8 +531,90 @@ class TestOrbit(unittest.TestCase):
         self.isclose(r,8113.9*km)
         self.isclose(x[0],-3297.8*km)
         self.isclose(x[1],7413.9*km)
+        self.isclose(x[2],0)
         self.isclose(v[0],-8.2977*km)
         self.isclose(v[1],-0.96404*km)
+        self.isclose(v[2],0)
+
+    def test_curtis_ex4_1(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+        o = Orbit(body=b)
+
+        o.epoch = 0
+        o.position_at_epoch = (-5368*km, -1784*km, 3691*km)
+
+        self.isclose(o.declination_at_epoch, 33.12*deg)
+        self.isclose(o.right_ascension_at_epoch, 198.4*deg)
+
+
+    def test_curtis_ex4_2(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+        o = Orbit(body=b)
+
+        o.epoch = 0
+        o.position_at_epoch = (1600*km, 5310*km, 3800*km)
+        o.velocity_at_epoch = (-7.350*km, 0.4600*km, 2.470*km)
+
+        t = 3200
+
+        x = o.position_at_time(t)
+        v = o.velocity_at_time(t)
+
+        self.isclose(x[0],1091.3*km)
+        self.isclose(x[1],-5199.4*km)
+        self.isclose(x[2],-4480.6*km)
+        self.isclose(v[0],7.2284*km)
+        self.isclose(v[1],1.9997*km)
+        self.isclose(v[2],-0.46296*km)
+
+
+        '''
+        import matplotlib as mpl
+        from mpl_toolkits.mplot3d import Axes3D
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        T = o.period
+        npoints = 50
+        tt = np.linspace(0,T,npoints)
+        f,g,df,fg = o.lagrange_coefficients_at_time(tt)
+        xx,yy,zz = o.position_at_lagrange_coefficients(f,g)
+
+
+        mpl.rcParams['legend.fontsize'] = 10
+
+        def axisEqual3D(ax):
+            extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
+            sz = extents[:,1] - extents[:,0]
+            centers = np.mean(extents, axis=1)
+            maxsize = max(abs(sz))
+            r = maxsize/2
+            for ctr, dim in zip(centers, 'xyz'):
+                getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
+
+        def plot_sphere(ax, position, radius, *args, **kwargs):
+            u = np.linspace(0, 2 * np.pi, 360)
+            v = np.linspace(0, np.pi, 180)
+            x0,y0,z0 = position
+            x = x0 + radius * np.outer(np.cos(u), np.sin(v))
+            y = y0 + radius * np.outer(np.sin(u), np.sin(v))
+            z = z0 + radius * np.outer(np.ones(np.size(u)), np.cos(v))
+            ax.plot_surface(x, y, z, *args, **kwargs)
+
+
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.plot(xx/km,yy/km,zz/km,label='orbit',lw=3)
+        plot_sphere(ax,(0,0,0),6378, alpha=0.7, color='lightblue')
+        ax.legend()
+        axisEqual3D(ax)
+
+        plt.show()
+        '''
 
 
 

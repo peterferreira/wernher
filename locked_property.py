@@ -1,3 +1,4 @@
+import inspect
 import numpy as np
 
 class LockError(Exception):
@@ -66,8 +67,11 @@ class locked_property(cached_property):
             raise OverspecifiedError(self.__name__)
         except LockError:
             if hasattr(val,'__iter__'):
-                val = np.asarray(val)
-            obj.__dict__[self.__name__] = val
+                val = np.asarray(val, dtype=np.float64)
+            try:
+                obj.__dict__[self.__name__] = np.float64(val)
+            except TypeError:
+                obj.__dict__[self.__name__] = val
 
     def lock(self,fn):
         def locked_fget(obj):
@@ -79,6 +83,16 @@ class locked_property(cached_property):
                 obj.call_stack.append(self.__name__)
                 try:
                     val = fn(obj)
+                    self.debug = True
+                    if self.debug:
+                        print(fn.__name__)
+                        frame = inspect.stack()[2][0]
+                        try:
+                            ctx = inspect.getframeinfo(frame)
+                            print('   ',ctx)
+                        finally:
+                            del frame
+
                 finally:
                     obj.call_stack.remove(self.__name__)
                 return val

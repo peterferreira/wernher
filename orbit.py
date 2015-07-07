@@ -5,7 +5,7 @@ from scipy import optimize as opt
 inf = np.inf
 nan = np.nan
 
-sqrt = lambda x: np.sqrt(np.float(x))
+sqrt = lambda x: np.sqrt(float(x))
 sin = np.sin
 cos = np.cos
 tan = np.tan
@@ -42,7 +42,7 @@ class Orbit(object):
         v0      velocity_at_epoch
 
     Independent Parameters
-        t0  epoch
+        t0      epoch
 
     Intermediate Parameters
         ϖ       longitude_of_periapsis
@@ -117,10 +117,10 @@ class Orbit(object):
 
     '''
     # Fundamental Elements
-    e      = property_alias('eccentricity')
     i      = property_alias('inclination')
     Ω      = property_alias('longitude_of_ascending_node')
     ω      = property_alias('argument_of_periapsis')
+    e      = property_alias('eccentricity')
     a      = property_alias('semi_major_axis')
     h      = property_alias('specific_angular_momentum')
     M0     = property_alias('mean_anomaly_at_epoch')
@@ -161,10 +161,64 @@ class Orbit(object):
             raise LockError from None
 
     @locked_property
+    def epoch(self):
+        raise LockError from None
+
+    @locked_property
     def orbit_type(self):
         e = self.eccentricity
         otype = OrbitType.from_eccentricity(e)
         return otype
+
+    @locked_property
+    def inclination(self):
+        x,y,z = self.position_at_epoch
+        vx,vy,vz = self.velocity_at_epoch
+        h = self.specific_angular_momentum
+        hz = x*vy - y*vx
+        i = arccos(hz / h)
+        return i
+
+    @locked_property
+    def node_line_vector(self):
+        hx,hy,hz = self.specific_angular_momentum_vector
+        n = np.array([-hyk,hx])
+        return n
+
+    @locked_property
+    def node_line(self):
+        nv = self.node_line_vector
+        n = sqrt(sum(nv**2))
+        return n
+
+    @locked_property
+    def right_ascension(self):
+        '''of ascending node'''
+        nx,ny = self.node_line_vector
+        n = self.node_line
+        Ω = arccos(nx/n)
+        if ny < 0:
+            Ω = 2*π - Ω
+        return Ω
+
+    @locked_property
+    def eccentricity_vector(self):
+        x = self.position_at_epoch
+        r = self.radius_at_epoch
+        v = self.velocity_at_epoch
+        vr = self.radial_speed_at_epoch
+        s = self.speed_at_epoch
+        μ = self.body.gravitational_parameter
+        e = (1/μ) * ((s**2 - μ/r)*x - (r * vr)*v)
+        #print()
+        #print('e vector:',e)
+        #print('x:',x)
+        #print('v:',v)
+        #print('s:',s)
+        #print('μ/r:',μ/r)
+        #print('r * vr * v',r * vr * v)
+        #print()
+        return e
 
     @locked_property
     def eccentricity(self):
@@ -174,30 +228,46 @@ class Orbit(object):
             θ = self.true_anomaly_at_epoch
             μ = self.body.gravitational_parameter
             e = (h**2 / (μ * r) - 1) / cos(θ)
+            #print('e_1:',e)
+            #print('h:',h)
+            #print('r:',r)
+            #print('θ:',θ)
             return e
 
         def _2(self):
-            pe = self.periapsis
-            ap = self.apoapsis
-            e = (ap - pe) / (ap + pe)
+            ev = self.eccentricity_vector
+            e = sqrt(sum(ev**2))
+            print()
+            print('e_2',type(e),e)
+            print('ev',ev)
+            print()
             return e
 
         def _3(self):
+            pe = self.periapsis
+            ap = self.apoapsis
+            e = (ap - pe) / (ap + pe)
+            #print('e_2:',e)
+            return e
+
+        def _4(self):
             r = self.radius_at_epoch
             v = self.speed_at_epoch
             vt = self.tangent_speed_at_epoch
             μ = self.body.gravitational_parameter
             e = sqrt(1 + (r * vt**2 / μ) * ((r * v**2 / μ) - 2))
+            #print('e_3:',e)
             return e
 
-        def _4(self):
+        def _5(self):
             h = self.specific_angular_momentum
             pe = self.periapsis
             μ = self.body.gravitational_parameter
             e = h**2 / (μ * pe) - 1
+            #print('e_4:',e)
             return e
 
-        def _5(self):
+        def _6(self):
             r = self.radius_at_epoch
             v = self.speed_at_epoch
             θ = self.true_anomaly_at_epoch
@@ -222,7 +292,7 @@ class Orbit(object):
 
             return e
 
-        def _6(self):
+        def _7(self):
             otype = self.orbit_type
             if otype is circular:
                 e = 0
@@ -232,7 +302,7 @@ class Orbit(object):
                 raise LockError from None
             return e
 
-        e = self._try_calc([_1,_2,_3,_4,_5,_6])
+        e = self._try_calc([_1,_2,_3,_4,_5,_6,_7])
         return e
 
     @locked_property
@@ -245,12 +315,16 @@ class Orbit(object):
             h = self.specific_angular_momentum
             μ = self.body.gravitational_parameter
             a = h**2 / (μ * (1 - e**2))
+            #print('a_1:',a)
+            #print('e:',e)
+            #print('h:',h)
             return a
 
         def _2(self):
             pe = self.periapsis
             ap = self.apoapsis
             a = (pe + ap) / 2
+            #print('a_2:',a)
             return a
 
         def _3(self):
@@ -258,10 +332,20 @@ class Orbit(object):
             v = self.speed_at_epoch
             μ = self.body.gravitational_parameter
             a = 1 / (2/r - (v**2)/μ)
+            #print('a_3:',a)
             return a
 
         a = self._try_calc([_1,_2,_3])
         return a
+
+    @locked_property
+    def specific_angular_momentum_vector(self):
+        x,y,z = self.position_at_epoch
+        vx,vy,vz = self.velocity_at_epoch
+        hx = y*vz - z*vy
+        hy = z*vx - x*vz
+        hz = x*vy - y*vx
+        return np.array([hx,hy,hz])
 
     @locked_property
     def specific_angular_momentum(self):
@@ -275,31 +359,36 @@ class Orbit(object):
             return h
 
         def _2(self):
+            hv = self.specific_angular_momentum_vector
+            h = sqrt(sum(hv.astype(np.float64)**2))
+            return h
+
+        def _3(self):
             pe = self.periapsis
             e = self.eccentricity
             μ = self.body.gravitational_parameter
             h = sqrt(pe * μ * (1 + e))
             return h
 
-        def _3(self):
+        def _4(self):
             pe = self.periapsis
             vpe = self.speed_at_periapsis
             h = pe * vpe
             return h
 
-        def _4(self):
+        def _5(self):
             vt = self.tangent_speed_at_epoch
             r = self.radius_at_epoch
             h = vt * r
             return h
 
-        def _5(self):
+        def _6(self):
             p,q = self.perifocal_position_at_epoch
             vp,vq = self.perifocal_velocity_at_epoch
             h = (p * vq) - (q * vp)
             return h
 
-        h = self._try_calc([_1,_2,_3,_4,_5])
+        h = self._try_calc([_1,_2,_3,_4,_5,_6])
         return h
 
     @locked_property
@@ -335,11 +424,15 @@ class Orbit(object):
 
     @locked_property
     def position_at_epoch(self):
-        raise LockError from None
+        t0 = self.epoch
+        x0 = self.position_at_time(t0)
+        return x0
 
     @locked_property
     def velocity_at_epoch(self):
-        raise LockError from None
+        t0 = self.epoch
+        v0 = self.velocity_at_time(t0)
+        return v0
 
     @locked_property
     def tangent_speed_at_epoch(self):
@@ -360,10 +453,10 @@ class Orbit(object):
             γ = self.flight_path_angle_at_epoch
             vr = v / sqrt((1/tan(γ)**2) + 1)
         except LockError:
-            x,y = self.position_at_epoch
-            vx,vy = self.velocity_at_epoch
+            x,y,z = self.position_at_epoch
+            vx,vy,vz = self.velocity_at_epoch
             r = self.radius_at_epoch
-            vr = (vx*x + vy*y) / r
+            vr = (vx*x + vy*y + vz*z) / r
         return vr
 
     @locked_property
@@ -377,8 +470,8 @@ class Orbit(object):
             r = a * (1 - e**2) / (1 + e * cos(θ))
         except LockError:
             try:
-                x,y = self.position_at_epoch
-                r = sqrt(x**2 + y**2)
+                x,y,z = self.position_at_epoch
+                r = sqrt(x**2 + y**2 + z**2)
             except LockError:
                 p,q = self.perifocal_position_at_epoch
                 r = sqrt(p**2 + q**2)
@@ -445,8 +538,8 @@ class Orbit(object):
             v = self.speed_at_radius(r)
         except LockError:
             try:
-                vx,vy = self.velocity_at_epoch
-                v = sqrt(vx**2 + vy**2)
+                vx,vy,vz = self.velocity_at_epoch
+                v = sqrt(vx**2 + vy**2 + vz**2)
             except LockError:
                 vp,vq = self.perifocal_velocity_at_epoch
                 v = sqrt(vp**2 + vq**2)
@@ -549,6 +642,23 @@ class Orbit(object):
     def mean_motion(self):
         T = self.period
         return 2*π / T
+
+    @locked_property
+    def declination_at_epoch(self):
+        x,y,z = self.position_at_epoch
+        r = self.radius_at_epoch
+        δ = arcsin(z/r)
+        return δ
+
+    @locked_property
+    def right_ascension_at_epoch(self):
+        x,y,z = self.position_at_epoch
+        r = self.radius_at_epoch
+        δ = self.declination_at_epoch
+        α = arccos(x / (r * cos(δ)))
+        if (y/r) < 0:
+            α = 2*π - α
+        return α
 
     ### tranformation vectors to Cartesian coordinates
     @locked_property
@@ -673,12 +783,23 @@ class Orbit(object):
         return r
 
     def position_at_time(self,t):
-        x0,y0 = self.position_at_epoch
-        vx0,vy0 = self.velocity_at_epoch
         f,g,dfdχ,dgdχ = self.lagrange_coefficients_at_time(t)
-        x = f * x0 + g * vx0
-        y = f * y0 + g * vy0
-        return np.hstack([x,y])
+        x = self.position_at_lagrange_coefficients(f,g)
+        return x
+
+    def position_at_lagrange_coefficients(self,f,g):
+        x0 = self.position_at_epoch
+        v0 = self.velocity_at_epoch
+
+        if isinstance(f,np.ndarray) or isinstance(g,np.ndarray):
+            x0 = x0.reshape((3,1))
+            v0 = v0.reshape((3,1))
+            f = f.reshape((1,-1))
+            g = g.reshape((1,-1))
+
+        x = f * x0 + g * v0
+
+        return np.squeeze(x)
 
     def position_at_true_anomaly(self,θ):
         h = self.specific_angular_momentum
@@ -691,20 +812,35 @@ class Orbit(object):
         f = 1 - (μ * r / h**2) * (1 - cos(Δθ))
         g = (r * r0 / h) * sin(Δθ)
 
-        x0,y0 = self.position_at_epoch
-        vx0,vy0 = self.velocity_at_epoch
+        x0 = self.position_at_epoch
+        v0 = self.velocity_at_epoch
 
-        x = f * x0 + g * vx0
-        y = f * y0 + g * vy0
-        return np.hstack([x,y])
+        if hasattr(θ,'__iter__'):
+            x0 = x0.reshape((3,1))
+            v0 = v0.reshape((3,1))
+            f = f.reshape((1,-1))
+            g = g.reshape((1,-1))
+
+        x = f * x0 + g * v0
+        return np.squeeze(x)
 
     def velocity_at_time(self,t):
-        x0,y0 = self.position_at_epoch
-        vx0,vy0 = self.velocity_at_epoch
         f,g,dfdχ,dgdχ = self.lagrange_coefficients_at_time(t)
-        vx = dfdχ * x0 + dgdχ * vx0
-        vy = dfdχ * y0 + dgdχ * vy0
-        return np.hstack([vx,vy])
+        v = self.velocity_at_lagrange_coefficients(dfdχ,dgdχ)
+        return v
+
+    def velocity_at_lagrange_coefficients(self,dfdχ,dgdχ):
+        x0 = self.position_at_epoch
+        v0 = self.velocity_at_epoch
+
+        if isinstance(dfdχ,np.ndarray) or isinstance(dgdχ,np.ndarray):
+            x0 = x0.reshape((3,1))
+            v0 = v0.reshape((3,1))
+            dfdχ = dfdχ.reshape((1,-1))
+            dgdχ = dgdχ.reshape((1,-1))
+
+        v = dfdχ * x0 + dgdχ * v0
+        return np.squeeze(v)
 
     def velocity_at_true_anomaly(self,θ):
         h = self.specific_angular_momentum
@@ -718,12 +854,17 @@ class Orbit(object):
              * ((μ/h**2) * (1 - cos(Δθ)) - 1/r0 - 1/r)
         dgdθ = 1 - (μ * r0 / h**2) * (1 - cos(Δθ))
 
-        x0,y0 = self.position_at_epoch
-        vx0,vy0 = self.velocity_at_epoch
+        x0 = self.position_at_epoch
+        v0 = self.velocity_at_epoch
 
-        vx = dfdθ * x0 + dgdθ * vx0
-        vy = dfdθ * y0 + dgdθ * vy0
-        return np.hstack([vx,vy])
+        if isinstance(dfdθ,np.ndarray) or isinstance(dgdθ,np.ndarray):
+            x0 = x0.reshape((3,1))
+            v0 = v0.reshape((3,1))
+            dfdχ = dfdχ.reshape((1,-1))
+            dgdχ = dgdχ.reshape((1,-1))
+
+        v = dfdθ * x0 + dgdθ * v0
+        return np.squeeze(v)
 
     def universal_anomaly_at_time(self,t):
         t0 = self.epoch
@@ -759,13 +900,20 @@ class Orbit(object):
         def χinit(t,t0=t0):
             return sqrt(μ) * abs(α) * (t - t0)
 
+
+        #km=1000
+        #print()
+        #print('a:',a/km)
+        #print('α:',α*km)
+        #print('χ0:',χinit(t)/km**0.5)
+
         if hasattr(t,'__iter__'):
             χ = np.array([opt.newton(f(_t),χinit(_t),fprime=dfdχ) \
                           for _t in t])
         else:
             χ = opt.newton(f(t),χinit(t),fprime=dfdχ)
 
-        return χ
+        return np.squeeze(χ)
 
     def lagrange_coefficients_at_time(self,t):
         t0 = self.epoch
@@ -776,6 +924,12 @@ class Orbit(object):
         μ = self.body.gravitational_parameter
         χ = self.universal_anomaly_at_time(t)
 
+        if hasattr(t,'__iter__'):
+            x0 = x0.reshape((3,1))
+            v0 = v0.reshape((3,1))
+
+        #print('x0:',x0)
+
         α = 1 / a
         z = α * χ**2
 
@@ -785,11 +939,21 @@ class Orbit(object):
         f = 1 - (χ**2 / r0) * cz
         g = (t - t0) - (1/sqrt(μ)) * χ**3 * sz
 
+        if hasattr(t,'__iter__'):
+            f = f.reshape((1,-1))
+            g = g.reshape((1,-1))
+
         x = f * x0 + g * v0
-        r = sqrt(sum(x**2))
+        r = np.sqrt(sum(x**2))
 
         dfdχ = (sqrt(μ) / (r * r0)) * (α * χ**3 * sz - χ)
         dgdχ = 1 - (χ**2 / r) * cz
+
+        if hasattr(t,'__iter__'):
+            f = f.squeeze()
+            g = g.squeeze()
+            dfdχ = dfdχ.squeeze()
+            dγdχ = dgdχ.squeeze()
 
         return f,g,dfdχ,dgdχ
 
