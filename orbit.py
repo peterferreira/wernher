@@ -182,7 +182,7 @@ class Orbit(object):
     @locked_property
     def node_line_vector(self):
         hx,hy,hz = self.specific_angular_momentum_vector
-        n = np.array([-hyk,hx])
+        n = np.array([-hy,hx])
         return n
 
     @locked_property
@@ -202,6 +202,18 @@ class Orbit(object):
         return Ω
 
     @locked_property
+    def argument_of_periapsis(self):
+        nv = self.node_line_vector
+        n = self.node_line
+        ev = self.eccentricity_vector
+        e = self.eccentricity
+        ez = ev[2]
+        ω = arccos(sum(nv * ev[:len(nv)]) / (n * e))
+        if ez < 0:
+            ω = 2*π - ω
+        return ω
+
+    @locked_property
     def eccentricity_vector(self):
         x = self.position_at_epoch
         r = self.radius_at_epoch
@@ -210,14 +222,6 @@ class Orbit(object):
         s = self.speed_at_epoch
         μ = self.body.gravitational_parameter
         e = (1/μ) * ((s**2 - μ/r)*x - (r * vr)*v)
-        #print()
-        #print('e vector:',e)
-        #print('x:',x)
-        #print('v:',v)
-        #print('s:',s)
-        #print('μ/r:',μ/r)
-        #print('r * vr * v',r * vr * v)
-        #print()
         return e
 
     @locked_property
@@ -228,26 +232,17 @@ class Orbit(object):
             θ = self.true_anomaly_at_epoch
             μ = self.body.gravitational_parameter
             e = (h**2 / (μ * r) - 1) / cos(θ)
-            #print('e_1:',e)
-            #print('h:',h)
-            #print('r:',r)
-            #print('θ:',θ)
             return e
 
         def _2(self):
             ev = self.eccentricity_vector
             e = sqrt(sum(ev**2))
-            print()
-            print('e_2',type(e),e)
-            print('ev',ev)
-            print()
             return e
 
         def _3(self):
             pe = self.periapsis
             ap = self.apoapsis
             e = (ap - pe) / (ap + pe)
-            #print('e_2:',e)
             return e
 
         def _4(self):
@@ -256,7 +251,6 @@ class Orbit(object):
             vt = self.tangent_speed_at_epoch
             μ = self.body.gravitational_parameter
             e = sqrt(1 + (r * vt**2 / μ) * ((r * v**2 / μ) - 2))
-            #print('e_3:',e)
             return e
 
         def _5(self):
@@ -264,7 +258,6 @@ class Orbit(object):
             pe = self.periapsis
             μ = self.body.gravitational_parameter
             e = h**2 / (μ * pe) - 1
-            #print('e_4:',e)
             return e
 
         def _6(self):
@@ -315,16 +308,12 @@ class Orbit(object):
             h = self.specific_angular_momentum
             μ = self.body.gravitational_parameter
             a = h**2 / (μ * (1 - e**2))
-            #print('a_1:',a)
-            #print('e:',e)
-            #print('h:',h)
             return a
 
         def _2(self):
             pe = self.periapsis
             ap = self.apoapsis
             a = (pe + ap) / 2
-            #print('a_2:',a)
             return a
 
         def _3(self):
@@ -332,7 +321,6 @@ class Orbit(object):
             v = self.speed_at_epoch
             μ = self.body.gravitational_parameter
             a = 1 / (2/r - (v**2)/μ)
-            #print('a_3:',a)
             return a
 
         a = self._try_calc([_1,_2,_3])
@@ -415,11 +403,22 @@ class Orbit(object):
             if vr < 0:
                 θ = 2*π - θ
         except LockError:
-            p,q = self.perifocal_position_at_epoch
-            r = self.radius_at_epoch
-            θ = arccos(p / r)
-            if q < 0:
-                θ = 2*π - θ
+            try:
+                ev = self.eccentricity_vector
+                e = self.eccentricity
+                x = self.position_at_epoch
+                r = self.radius_at_epoch
+                vr = self.radial_speed_at_epoch
+                θ = arccos(sum(ev * x) / (e * r))
+                if vr < 0:
+                    θ = 2*π - θ
+            except LockError:
+                p,q = self.perifocal_position_at_epoch
+                r = self.radius_at_epoch
+                θ = arccos(p / r)
+                if q < 0:
+                    θ = 2*π - θ
+
         return θ
 
     @locked_property
@@ -427,6 +426,18 @@ class Orbit(object):
         t0 = self.epoch
         x0 = self.position_at_time(t0)
         return x0
+
+    @locked_property
+    def position_at_ascending_node(self):
+        ω = self.argument_of_periapsis
+        x = self.position_at_true_anomaly(-ω)
+        return x
+
+    @locked_property
+    def position_at_descending_node(self):
+        ω = self.argument_of_periapsis
+        x = self.position_at_true_anomaly(-ω+π)
+        return x
 
     @locked_property
     def velocity_at_epoch(self):
@@ -900,13 +911,6 @@ class Orbit(object):
         def χinit(t,t0=t0):
             return sqrt(μ) * abs(α) * (t - t0)
 
-
-        #km=1000
-        #print()
-        #print('a:',a/km)
-        #print('α:',α*km)
-        #print('χ0:',χinit(t)/km**0.5)
-
         if hasattr(t,'__iter__'):
             χ = np.array([opt.newton(f(_t),χinit(_t),fprime=dfdχ) \
                           for _t in t])
@@ -927,8 +931,6 @@ class Orbit(object):
         if hasattr(t,'__iter__'):
             x0 = x0.reshape((3,1))
             v0 = v0.reshape((3,1))
-
-        #print('x0:',x0)
 
         α = 1 / a
         z = α * χ**2

@@ -83,7 +83,7 @@ class locked_property(cached_property):
                 obj.call_stack.append(self.__name__)
                 try:
                     val = fn(obj)
-                    self.debug = True
+                    self.debug = False
                     if self.debug:
                         print(fn.__name__)
                         frame = inspect.stack()[2][0]

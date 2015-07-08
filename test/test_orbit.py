@@ -55,14 +55,19 @@ class TestOrbit(unittest.TestCase):
         self.assertTrue(np.isclose(x,y,rtol=1e-4,atol=1e-4),msg)
 
     def test_curtis_ex2_5(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            rotational_speed = 72.9217e-6,
-            )
-        o = Orbit(body=b)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                rotational_speed = 72.9217e-6,
+                )
+            o = Orbit(body=b)
+            return o
+        o = setup_orbit()
         self.isclose(o.body.stationary_radius,42164*km)
+        o = setup_orbit()
         self.isclose(o.body.stationary_altitude,35786*km)
+        o = setup_orbit()
         self.isclose(o.body.stationary_speed,3.0747*km)
 
 
@@ -70,112 +75,109 @@ class TestOrbit(unittest.TestCase):
     def test_curtis_ex2_7(self):
 
         # page 91 (Orbital Mech for Eng, 3rd ed)
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        oe = Bunch(
-            body = b,
-            periapsis_altitude = 400*km,
-            apoapsis_altitude = 4000*km,
-            )
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            oe = Bunch(
+                body = b,
+                periapsis_altitude = 400*km,
+                apoapsis_altitude = 4000*km,
+                )
+            return Orbit(**oe)
 
         h = 60*60
 
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.eccentricity,0.2098)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.specific_angular_momentum,57172*km**2)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.speed_at_periapsis,8.435*km)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.speed_at_apoapsis,5.509*km)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.semi_major_axis,8578*km)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.period,2.1963*h)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.radius_at_average_true_anomaly,8387*km)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         rθ = o.radius_at_average_true_anomaly
         θ = o.true_anomaly_from_periapsis(r=rθ)
         self.isclose(θ/deg,96.09)
         self.isclose(o.speed_at_radius(rθ),6.970*km)
         self.isclose(o.flight_path_angle_at_true_anomaly(θ)/deg,12.047)
+        o = setup_orbit()
         self.isclose(o.true_anomaly_at_semi_minor_axis/deg,102.113)
+        o = setup_orbit()
         self.isclose(o.flight_path_angle_max/deg,12.113)
 
     def test_curtis_ex2_7_aliases(self):
 
         # page 91 (Orbital Mech for Eng, 3rd ed)
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        oe = Bunch(
-            body = b,
-            pe_alt = 400*km,
-            ap_alt = 4000*km,
-            )
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            oe = Bunch(
+                body = b,
+                pe_alt = 400*km,
+                ap_alt = 4000*km,
+                )
+            return Orbit(**oe)
 
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.e,0.2098)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.h,57172*km**2)
-
-        o = Orbit(**oe)
+        o = setup_orbit()
         self.isclose(o.a,8578*km)
 
     def test_curtis_ex2_8(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
 
-        h = 60*60
+            z1 = 1545*km
+            θ1 = 126*deg
+            z2 = 852*km
+            θ2 = 58*deg
+            return Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
 
-        z1 = 1545*km
-        θ1 = 126*deg
-        z2 = 852*km
-        θ2 = 58*deg
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
+        o = setup_orbit()
         self.isclose(o.e,0.08164)
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
+        o = setup_orbit()
         self.isclose(o.h,54830*km**2)
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
+        o = setup_orbit()
         self.isclose(o.pe,6974*km)
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
+        o = setup_orbit()
         self.isclose(o.pe_alt,595.5*km)
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
+        o = setup_orbit()
         self.isclose(o.a,7593*km)
-
-        o = Orbit.from_altitude_at_true_anomaly(z1,θ1,z2,θ2,b)
-        self.isclose(o.T,1.8291*h)
+        o = setup_orbit()
+        self.isclose(o.T,1.8291*60*60)
 
 
     def test_curtis_ex2_9(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.eccentricity = 1
-        o.periapsis = 7000*km
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.eccentricity = 1
+            o.periapsis = 7000*km
+            return o
+
+        o = setup_orbit()
         self.isclose(o.specific_angular_momentum,74700*km**2)
 
+        o = setup_orbit()
         r1 = 8000*km
         r2 = 16000*km
 
@@ -190,92 +192,116 @@ class TestOrbit(unittest.TestCase):
         self.isclose(d,13266.5*km)
 
     def test_curtis_ex2_10(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.radius_at_epoch = 14600*km
-        o.speed_at_epoch = 8.6*km
-        o.flight_path_angle_at_epoch = 50*deg
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.radius_at_epoch = 14600*km
+            o.speed_at_epoch = 8.6*km
+            o.flight_path_angle_at_epoch = 50*deg
+            return o
 
+        o = setup_orbit()
         self.assertTrue(o.orbit_type is OrbitType.hyperbolic)
 
+        o = setup_orbit()
         self.isclose(o.tangent_speed_at_epoch,5.528*km)
+        o = setup_orbit()
         self.isclose(o.specific_angular_momentum,80708*km**2)
+        o = setup_orbit()
         self.isclose(o.radial_speed_at_epoch,6.588*km)
+        o = setup_orbit()
         self.isclose(o.eccentricity,1.3393)
+        o = setup_orbit()
         self.isclose(o.true_anomaly_at_epoch,84.889*deg)
 
+        o = setup_orbit()
         self.isclose(o.periapsis,6986*km)
+        o = setup_orbit()
         self.isclose(o.semi_major_axis,-20590*km)
+        o = setup_orbit()
         self.isclose(o.speed_at_infinity,sqrt(19.36)*km)
+        o = setup_orbit()
         self.isclose(o.turn_angle,96.60*deg)
+        o = setup_orbit()
         self.isclose(o.aiming_radius,18344*km)
 
     def test_curtis_ex2_11(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.e = 0.3
-        o.h = 60000*km**2
-        o.θ0 = 120*deg
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.e = 0.3
+            o.h = 60000*km**2
+            o.θ0 = 120*deg
+            return o
 
+        o = setup_orbit()
         p,q = o.perifocal_position_at_epoch
         self.isclose(p,-5312.7*km)
         self.isclose(q,9201.9*km)
 
-        o = Orbit(body=b)
-        o.e = 0.3
-        o.h = 60000*km**2
-        o.θ0 = 120*deg
-
+        o = setup_orbit()
         vp,vq = o.perifocal_velocity_at_epoch
         self.isclose(vp,-5.7533*km)
         self.isclose(vq,-1.3287*km)
 
     def test_curtis_ex2_12(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.position_at_epoch = (7000*km, 9000*km, 0)
+            o.velocity_at_epoch = (-5*km, 7*km, 0)
+            return o
 
-        o = Orbit(body=b)
-        o.position_at_epoch = (7000*km, 9000*km, 0)
-        o.velocity_at_epoch = (-5*km, 7*km, 0)
-
+        o = setup_orbit()
         self.isclose(o.e, 1.1077)
+        o = setup_orbit()
         self.isclose(o.h,94000*km**2)
+        o = setup_orbit()
         self.isclose(o.pe,10517.5*km)
+        o = setup_orbit()
         self.isclose(o.radius_at_epoch,11401.8*km)
+        o = setup_orbit()
         self.isclose(o.θ0,31.5224*deg)
+        o = setup_orbit()
         self.isclose(o.speed_at_epoch,8.6023*km)
-
-        o = Orbit(body=b)
-        o.position_at_epoch = (7000*km, 9000*km, 0)
-        o.velocity_at_epoch = (-5*km, 7*km, 0)
-
+        o = setup_orbit()
         self.isclose(o.h,94000*km**2)
+        o = setup_orbit()
         self.isclose(o.e, 1.1077)
 
+        o = setup_orbit()
         self.assertTrue(o.orbit_type is OrbitType.hyperbolic)
 
     def test_curtis_ex2_13(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
-        o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
+            o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
+            return o
 
+        o = setup_orbit()
         self.isclose(o.radius_at_epoch,10681*km) # 10861 in book (error)
+        o = setup_orbit()
         self.isclose(o.speed_at_epoch,8.8244*km)
+        o = setup_orbit()
         self.isclose(o.radial_speed_at_epoch,-5.2996*km)
+        o = setup_orbit()
         self.isclose(o.h,75366*km**2)
 
+        o = setup_orbit()
         θ0 = o.true_anomaly_at_epoch
         self.isclose(θ0,288.44*deg)
 
@@ -283,80 +309,108 @@ class TestOrbit(unittest.TestCase):
         self.isclose(r,8378.8*km)
 
     def test_curtis_ex2_14(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
-        o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.position_at_epoch = (8182.4*km, -6865.9*km, 0)
+            o.velocity_at_epoch = (0.47572*km, 8.8116*km, 0)
+            return o
 
+        o = setup_orbit()
         θ0 = o.true_anomaly_at_epoch
 
         x,y,z = o.position_at_true_anomaly(θ0 + 120*deg)
-        vx,vy,vz = o.velocity_at_true_anomaly(θ0 + 120*deg)
         self.isclose(x,1454.9*km)
         self.isclose(y,8251.6*km)
         self.isclose(z,0)
+
+        o = setup_orbit()
+        θ0 = o.true_anomaly_at_epoch
+
+        vx,vy,vz = o.velocity_at_true_anomaly(θ0 + 120*deg)
         self.isclose(vx,-8.1323*km)
         self.isclose(vy,5.6785*km)
         self.isclose(vz,0)
 
     def test_curtis_ex3_1(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.pe = 9600*km
-        o.ap = 21000*km
-        o.epoch = 0
-        o.θ0 = 0
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.pe = 9600*km
+            o.ap = 21000*km
+            o.epoch = 0
+            o.θ0 = 0
+            return o
 
+        o = setup_orbit()
         self.isclose(o.e,0.37255)
+        o = setup_orbit()
         self.isclose(o.h,72472*km**2)
+        o = setup_orbit()
         self.isclose(o.T,18834)
 
+        o = setup_orbit()
         E = o.eccentric_anomaly_at_true_anomaly(120*deg)
         self.isclose(E,1.7281)
         M = o.mean_anomaly_at_eccentric_anomaly(E)
         self.isclose(M,1.3601)
+
+        o = setup_orbit()
         t = o.time_at_true_anomaly(120*deg)
         self.isclose(t,4077)
 
 
     def test_curtis_ex3_2(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3,
-            )
-        o = Orbit(body=b)
-        o.pe = 9600*km
-        o.ap = 21000*km
-        o.epoch = 0
-        o.θ0 = 0
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3,
+                )
+            o = Orbit(body=b)
+            o.pe = 9600*km
+            o.ap = 21000*km
+            o.epoch = 0
+            o.θ0 = 0
+            return o
 
         t = 3*60*60
+
+        o = setup_orbit()
         M = o.mean_anomaly_at_time(t)
         self.isclose(M,3.6029)
+        o = setup_orbit()
         E = o.eccentric_anomaly_at_time(t)
         self.isclose(E,3.4794)
+        o = setup_orbit()
         θ = o.true_anomaly_at_time(t)
         self.isclose(θ,193.18*deg)
 
     def test_curtis_ex3_3(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
-        o = Orbit(body=b,
-            pe_alt = 500*km,
-            ap_alt = 5000*km)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b,
+                pe_alt = 500*km,
+                ap_alt = 5000*km)
+            return o
 
+        o = setup_orbit()
         self.isclose(o.e,0.24649)
+        o = setup_orbit()
         self.isclose(o.h,58458*km**2)
+        o = setup_orbit()
         self.isclose(o.a,9128*km)
+        o = setup_orbit()
         self.isclose(o.T,8679.1)
 
+        o = setup_orbit()
         A = o.e
         B = -(1-o.e**2) * o.a / o.body.equatorial_radius
         C = -1
@@ -386,137 +440,143 @@ class TestOrbit(unittest.TestCase):
 
 
     def test_curtis_ex3_4(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
-        o = Orbit(body=b,
-            orbit_type = OrbitType.parabolic,
-            vpe = 10*km,
-            θ0 = 0,
-            t0 = 0)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            return Orbit(body=b,
+                orbit_type = OrbitType.parabolic,
+                vpe = 10*km,
+                θ0 = 0,
+                t0 = 0)
 
+
+        o = setup_orbit()
         self.isclose(o.e,1)
+        o = setup_orbit()
         self.isclose(o.pe,7972*km)
+        o = setup_orbit()
         h = o.h
         self.isclose(h,79720*km**2)
+        o = setup_orbit()
         self.isclose(o.mean_anomaly_at_time(6*60*60),6.7737)
 
+        o = setup_orbit()
         θ = o.true_anomaly_at_time(6*60*60)
         self.isclose(θ,144.75*deg)
 
+        o = setup_orbit()
         # possible (rounding?) error in book: 86899*km
         self.isclose(o.radius_at_time(6*60*60),86976*km)
 
 
     def test_curtis_ex3_5(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
-        o = Orbit(body=b,
-            vpe = 15*km,
-            pe_alt = 300*km,
-            θ0 = 0,
-            t0 = 0)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            return Orbit(body=b,
+                vpe = 15*km,
+                pe_alt = 300*km,
+                θ0 = 0,
+                t0 = 0)
 
         θ = 100*deg
 
+        o = setup_orbit()
         self.isclose(o.h,100170*km**2)
+        o = setup_orbit()
         self.isclose(o.e,2.7696)
+        o = setup_orbit()
         self.isclose(o.true_anomaly_at_infinity,111.17*deg)
+        o = setup_orbit()
         self.isclose(o.radius_at_true_anomaly(θ),48497*km)
+        o = setup_orbit()
         self.isclose(o.eccentric_anomaly_at_true_anomaly(θ),2.2927)
+        o = setup_orbit()
         self.isclose(o.time_at_true_anomaly(θ),4141.4)
 
+        o = setup_orbit()
         t0 = o.time_at_true_anomaly(θ)
         t = t0 + 3*60*60
 
+        o = setup_orbit()
         self.isclose(o.mean_anomaly_at_time(t),40.690)
+        o = setup_orbit()
         self.isclose(o.eccentric_anomaly_at_time(t),3.4631)
+        o = setup_orbit()
         self.isclose(o.true_anomaly_at_time(t),107.78*deg)
+        o = setup_orbit()
         self.isclose(o.radius_at_time(t),163180*km)
+        o = setup_orbit()
         self.isclose(o.tangent_speed_at_time(t),0.61386*km)
+        o = setup_orbit()
         self.isclose(o.radial_speed_at_time(t),10.494*km)
+        o = setup_orbit()
         self.isclose(o.speed_at_time(t),10.512*km)
+        o = setup_orbit()
         self.isclose(o.speed_at_infinity,10.277*km)
 
 
     def test_curtis_ex3_6(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
 
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
+            o = Orbit(body=b)
+            o.epoch = 0
+            o.universal_anomaly_at_epoch = 0
+            o.true_anomaly_at_epoch = 30*deg
+            o.radius_at_epoch = 10000*km
+            o.speed_at_epoch = 10*km
+            return o
+
+
+        o = setup_orbit()
         self.isclose(o.e,1.4682)
-
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
+        o = setup_orbit()
         self.isclose(o.h,95154*km**2)
-
-
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
+        o = setup_orbit()
         self.isclose(o.radial_speed_at_epoch,3.0752*km)
-
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
+        o = setup_orbit()
         self.isclose(o.eccentric_anomaly_at_time(0),0.23448)
-
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
+        o = setup_orbit()
         self.isclose(o.a,-19655*km)
-
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.universal_anomaly_at_epoch = 0
-        o.true_anomaly_at_epoch = 30*deg
-        o.radius_at_epoch = 10000*km
-        o.speed_at_epoch = 10*km
-
+        o = setup_orbit()
         self.isclose(o.universal_anomaly_at_time(3600),128.51*km**0.5)
 
 
 
     def test_curtis_ex3_7(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
 
-        o = Orbit(body=b)
-        o.epoch = 0
-        o.position_at_epoch = (7000*km,-12124*km,0)
-        o.velocity_at_epoch = (2.6679*km,4.6210*km,0)
+            o = Orbit(body=b)
+            o.epoch = 0
+            o.position_at_epoch = (7000*km,-12124*km,0)
+            o.velocity_at_epoch = (2.6679*km,4.6210*km,0)
+            return o
 
         t = 60*60
 
+        o = setup_orbit()
         self.isclose(o.radius_at_epoch, 14000*km)
+        o = setup_orbit()
         self.isclose(o.speed_at_epoch, 5.3359*km)
+        o = setup_orbit()
         self.isclose(o.radial_speed_at_epoch, -2.6679*km)
+        o = setup_orbit()
         self.isclose(o.semi_major_axis, 13999*km)
+        o = setup_orbit()
         self.isclose(1/o.semi_major_axis, 7.1429e-5 / km)
 
+        o = setup_orbit()
         self.isclose(o.universal_anomaly_at_time(t), 253.53*km**0.5)
 
+        o = setup_orbit()
         f,g,dfdχ,dgdχ = o.lagrange_coefficients_at_time(t)
 
         self.isclose(f,-0.54123)
@@ -524,43 +584,54 @@ class TestOrbit(unittest.TestCase):
         self.isclose(dfdχ,-0.00055298)
         self.isclose(dgdχ,-1.6593)
 
+        o = setup_orbit()
         r = o.radius_at_time(t)
-        x = o.position_at_time(t)
-        v = o.velocity_at_time(t)
-
         self.isclose(r,8113.9*km)
+
+        o = setup_orbit()
+        x = o.position_at_time(t)
         self.isclose(x[0],-3297.8*km)
         self.isclose(x[1],7413.9*km)
         self.isclose(x[2],0)
+
+        o = setup_orbit()
+        v = o.velocity_at_time(t)
         self.isclose(v[0],-8.2977*km)
         self.isclose(v[1],-0.96404*km)
         self.isclose(v[2],0)
 
     def test_curtis_ex4_1(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
-        o = Orbit(body=b)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b)
 
-        o.epoch = 0
-        o.position_at_epoch = (-5368*km, -1784*km, 3691*km)
+            o.epoch = 0
+            o.position_at_epoch = (-5368*km, -1784*km, 3691*km)
+            return o
 
+        o = setup_orbit()
         self.isclose(o.declination_at_epoch, 33.12*deg)
+        o = setup_orbit()
         self.isclose(o.right_ascension_at_epoch, 198.4*deg)
 
 
     def test_curtis_ex4_2(self):
-        b = Bunch(
-            equatorial_radius = 6378*km,
-            gravitational_parameter = 398600*km**3)
-        o = Orbit(body=b)
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b)
 
-        o.epoch = 0
-        o.position_at_epoch = (1600*km, 5310*km, 3800*km)
-        o.velocity_at_epoch = (-7.350*km, 0.4600*km, 2.470*km)
+            o.epoch = 0
+            o.position_at_epoch = (1600*km, 5310*km, 3800*km)
+            o.velocity_at_epoch = (-7.350*km, 0.4600*km, 2.470*km)
+            return o
 
         t = 3200
 
+        o = setup_orbit()
         x = o.position_at_time(t)
         v = o.velocity_at_time(t)
 
@@ -570,7 +641,6 @@ class TestOrbit(unittest.TestCase):
         self.isclose(v[0],7.2284*km)
         self.isclose(v[1],1.9997*km)
         self.isclose(v[2],-0.46296*km)
-
 
         '''
         import matplotlib as mpl
@@ -610,11 +680,75 @@ class TestOrbit(unittest.TestCase):
         ax = fig.gca(projection='3d')
         ax.plot(xx/km,yy/km,zz/km,label='orbit',lw=3)
         plot_sphere(ax,(0,0,0),6378, alpha=0.7, color='lightblue')
+
+        x,y,z = o.position_at_ascending_node/km
+        ax.plot([x],[y],[z], marker='o', markersize=10)
+
+        x,y,z = o.position_at_descending_node/km
+        ax.plot([x],[y],[z], marker='o', markersize=10)
+
         ax.legend()
         axisEqual3D(ax)
 
         plt.show()
         '''
+
+
+    def test_curtis_ex4_3(self):
+
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b)
+            o.epoch = 0
+            o.position_at_epoch = -6045*km, -3490*km, 2500*km
+            o.velocity_at_epoch = -3.457*km, 6.618*km, 2.533*km
+            return o
+
+        o = setup_orbit()
+        self.isclose(o.radius_at_epoch, 7414*km)
+        o = setup_orbit()
+        self.isclose(o.speed_at_epoch, 7.884*km)
+        o = setup_orbit()
+        self.isclose(o.radial_speed_at_epoch, 0.5575*km)
+        o = setup_orbit()
+        hx,hy,hz = o.specific_angular_momentum_vector
+        self.isclose(hx,-25385*km**2)
+        self.isclose(hy,6670*km**2)
+        self.isclose(hz,-52070*km**2)
+        o = setup_orbit()
+        self.isclose(o.specific_angular_momentum,58310*km**2)
+        o = setup_orbit()
+        self.isclose(o.inclination, 153.25*deg)
+        o = setup_orbit()
+        nx,ny = o.node_line_vector
+        self.isclose(nx,-6669.5*km**2)
+        self.isclose(ny,-25385*km**2)
+        o = setup_orbit()
+        self.isclose(o.node_line,26247*km**2)
+        o = setup_orbit()
+        self.isclose(o.right_ascension, 255.3*deg)
+        o = setup_orbit()
+        ex,ey,ez = o.eccentricity_vector
+        self.isclose(ex,-0.09160)
+        self.isclose(ey,-0.1422)
+        self.isclose(ez,0.02644)
+        o = setup_orbit()
+        self.isclose(o.eccentricity,0.1712)
+        o = setup_orbit()
+        self.isclose(o.argument_of_periapsis,20.07*deg)
+        o = setup_orbit()
+        self.isclose(o.true_anomaly_at_epoch,28.45*deg)
+        o = setup_orbit()
+        self.isclose(o.periapsis,7284*km)
+        o = setup_orbit()
+        self.isclose(o.apoapsis,10293*km)
+        o = setup_orbit()
+        self.isclose(o.semi_major_axis,8788*km)
+        o = setup_orbit()
+        self.isclose(o.period,2.2775*60*60)
+
 
 
 
