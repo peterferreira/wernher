@@ -19,6 +19,10 @@ class CelestialBody(object):
     #self.equatorial_radius       = body.equatorial_radius
     #self.rotational_speed        = body.rotational_speed
 
+    @poperty
+    def epoch(self):
+        return 0
+
     @property
     def right_ascension_at_epoch(self):
         # RA of prime meridian (lon = 0) at epoch (t = 0)
@@ -30,7 +34,7 @@ class CelestialBody(object):
         r = self.equatorial_radius
         return ω * r
 
-    def right_ascension(self,t):
+    def right_ascension_at_time(self,t):
         '''RA of prime meridian'''
         α0 = self.right_ascension_at_epoch
         t0 = self.epoch

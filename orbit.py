@@ -423,8 +423,14 @@ class Orbit(object):
 
     @locked_property
     def position_at_epoch(self):
-        t0 = self.epoch
-        x0 = self.position_at_time(t0)
+        try:
+            x = self.perifocal_position_at_epoch.copy()
+            Q = self.transform
+            x.resize((3,))
+            x0 = np.dot(Q.T,x)
+        except LockError:
+            t0 = self.epoch
+            x0 = self.position_at_time(t0)
         return x0
 
     @locked_property
@@ -441,8 +447,14 @@ class Orbit(object):
 
     @locked_property
     def velocity_at_epoch(self):
-        t0 = self.epoch
-        v0 = self.velocity_at_time(t0)
+        try:
+            v = self.perifocal_velocity_at_epoch.copy()
+            Q = self.transform
+            v.resize((3,))
+            v0 = np.dot(Q.T,v)
+        except LockError:
+            t0 = self.epoch
+            v0 = self.velocity_at_time(t0)
         return v0
 
     @locked_property
@@ -686,18 +698,18 @@ class Orbit(object):
         sω = sin(ω)
         cω = cos(ω)
 
-        P = (cΩ * cω - sΩ * ci * sω,
-             sΩ * cω + cΩ * ci * sω,
-             si * sω)
-        Q = (-cΩ * sω - sΩ * ci * cω,
-             -sΩ * sω + cΩ * ci * cω,
-             si * cω)
-        W = (si*cω, si*sΩ, -si*sΩ)
+        Q = np.array([
+             [-sΩ*ci*sω + cΩ*cω,
+               cΩ*ci*sω + sΩ*cω,
+               si*sω],
+             [-sΩ*ci*cω - cΩ*sω,
+               cΩ*ci*cω - sΩ*sω,
+               si*cω],
+             [ sΩ*si,
+              -cΩ*si,
+               ci]])
 
-        P = np.array(P)
-        Q = np.array(Q)
-        W = np.array(W)
-        return (P,Q,W)
+        return Q
 
     @cached_property
     def lagrange_coefficients_at_epoch(self):
@@ -713,7 +725,7 @@ class Orbit(object):
         x = h**2 / (μ * (1 + e * cos(θ)))
         p = x * cos(θ)
         q = x * sin(θ)
-        return p,q
+        return np.array([p,q])
 
     @cached_property
     def perifocal_velocity_at_epoch(self):
@@ -723,7 +735,7 @@ class Orbit(object):
         μ = self.body.gravitational_parameter
         vp = - (μ / h) * sin(θ)
         vq = (μ / h) * (e + cos(θ))
-        return vp,vq
+        return np.array([vp,vq])
 
     def true_anomaly_from_periapsis(self,r):
         e = self.eccentricity
@@ -1073,6 +1085,35 @@ class Orbit(object):
             μ = self.body.gravitational_parameter
             t = (h**3 / (μ**2 * (e**2 - 1)**(3/2))) * M
         return t
+
+    @locked_property
+    def latitude_at_epoch(self):
+        δ = self.declination_at_epoch
+        lat = δ
+        return lat
+
+    def declination_at_time(self,t):
+        x,y,z = self.position_at_time(t)
+        δ = arcsin(z / sqrt(x**2 + y**2 + z**2))
+        return δ
+
+    def latitude_at_time(self,t):
+        δ = self.declination_at_time(t)
+        lat = δ
+        return lat
+
+    @locked_property
+    def longitude_at_epoch(self):
+        x,y,z = self.position_at_epoch
+        λ = self.body.right_ascension_at_epoch
+        lon = ((arctan2(y,x) - λ + π/2) % (2*π)) - π
+        return lon
+
+    def longitude_at_time(self,t):
+        x,y,z = self.position_at_time(t)
+        λ = self.body.right_ascension_at_time(t)
+        lon = ((arctan2(y,x) - λ + π/2) % (2*π)) - π
+        return lon
 
     @staticmethod
     def from_radius_at_true_anomaly(r1,θ1,r2,θ2,body):

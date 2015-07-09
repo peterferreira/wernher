@@ -633,11 +633,12 @@ class TestOrbit(unittest.TestCase):
 
         o = setup_orbit()
         x = o.position_at_time(t)
-        v = o.velocity_at_time(t)
-
         self.isclose(x[0],1091.3*km)
         self.isclose(x[1],-5199.4*km)
         self.isclose(x[2],-4480.6*km)
+
+        o = setup_orbit()
+        v = o.velocity_at_time(t)
         self.isclose(v[0],7.2284*km)
         self.isclose(v[1],1.9997*km)
         self.isclose(v[2],-0.46296*km)
@@ -749,6 +750,75 @@ class TestOrbit(unittest.TestCase):
         o = setup_orbit()
         self.isclose(o.period,2.2775*60*60)
 
+
+    def test_curtis_ex4_7(self):
+        def setup_orbit():
+            b = Bunch(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b,
+                epoch = 0,
+                h = 80000*km**2,
+                e = 1.4,
+                i = 30*deg,
+                Ω = 40*deg,
+                ω = 60*deg,
+                θ0 = 30*deg)
+            return o
+
+        o = setup_orbit()
+        x,y = o.perifocal_position_at_epoch
+        self.isclose(x,6285*km)
+        self.isclose(y,3628.6*km)
+
+        o = setup_orbit()
+        vx,vy = o.perifocal_velocity_at_epoch
+        self.isclose(vx,-2.4913*km)
+        self.isclose(vy,11.290*km)
+
+        o = setup_orbit()
+        x,y,z = o.position_at_epoch
+        self.isclose(x,-4040*km)
+        self.isclose(y,4815*km)
+        self.isclose(z,3628.6*km)
+
+        o = setup_orbit()
+        vx,vy,vz = o.velocity_at_epoch
+        self.isclose(vx,-10.386*km)
+        self.isclose(vy,-4.772*km)
+        self.isclose(vz,1.744*km)
+
+    def test_pe_speed(self):
+        b = Bunch(
+            equatorial_radius = 6378*km,
+            gravitational_parameter = 398600*km**3)
+
+        ee = np.linspace(0,2,50)
+        apo = []
+        vpe = []
+        for e in ee:
+            o = Orbit(body=b,pe=7000*km,e=e)
+            apo.append(o.apoapsis_altitude)
+            vpe.append(o.speed_at_periapsis)
+        apo = np.array(apo)/(km*km)
+        vpe = np.array(vpe)/km
+
+        '''
+        from matplotlib import pyplot
+        fig = pyplot.figure()
+        ax = fig.add_subplot(1,1,1)
+        axt = ax.twiny()
+        ax.plot(ee,vpe,lw=3,color='blue')
+        axt.plot(apo,vpe,lw=3,color='red')
+        ax.set_xlabel('eccentricity',color='blue')
+        axt.set_xlabel('apoapsis altitude (Mm)',color='red')
+        ax.set_ylabel('speed at periapsis (Km/s)')
+        ax.tick_params(axis='x', colors='blue')
+        axt.tick_params(axis='x', colors='red')
+        ax.spines['top'].set_color('red')
+        ax.spines['bottom'].set_color('blue')
+        pyplot.show()
+        '''
 
 
 
