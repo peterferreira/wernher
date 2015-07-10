@@ -5,7 +5,11 @@ from scipy import optimize as opt
 inf = np.inf
 nan = np.nan
 
-sqrt = lambda x: np.sqrt(float(x))
+def sqrt(x):
+    try:
+        return np.sqrt(x)
+    except:
+        return np.sqrt(float(x))
 sin = np.sin
 cos = np.cos
 tan = np.tan
@@ -49,12 +53,13 @@ class Orbit(object):
         T       period
         n       mean_motion
         δ       turn_angle
-        b       impact_parameter
+                impact_parameter
         Δ       aiming_radius
         γ0      flight_path_angle_at_epoch
 
         r0      radius_at_epoch
         b       semi_minor_axis
+        ϖ       longitude_of_periapsis
         ap      apoapsis
         pe      periapsis
         ap_alt  apoapsis_altitude
@@ -148,9 +153,37 @@ class Orbit(object):
 
     def __init__(self,**kwargs):
         if 'body' in kwargs:
-            self.body = CelestialBody(**kwargs.pop('body'))
+            body = kwargs.pop('body')
+            if isinstance(body,CelestialBody):
+                self.body = body
+            else:
+                self.body = CelestialBody(**body)
         for k,v in kwargs.items():
             setattr(self,k,v)
+
+    def __str__(self):
+        msglines = '''\
+Orbit(
+    i  = {inclination},
+    Ω  = {longitude_of_ascending_node},
+    ω  = {argument_of_periapsis},
+    e  = {eccentricity},
+    a  = {semi_major_axis},
+    h  = {specific_angular_momentum},
+    M0 = {mean_anomaly_at_epoch},
+    θ0 = {true_anomaly_at_epoch},
+    x0 = {position_at_epoch},
+    v0 = {position_at_epoch},
+    t0 = {epoch},
+    body = {body},)'''.split('\n')
+
+        msg = ''
+        for l in msglines:
+            try:
+                msg += l.format(**self.__dict__) + '\n'
+            except:
+                pass
+        return msg
 
     def _try_calc(self,fnlist):
         try:
@@ -162,6 +195,10 @@ class Orbit(object):
 
     @locked_property
     def epoch(self):
+        raise LockError from None
+
+    @locked_property
+    def longitude_of_ascending_node(self):
         raise LockError from None
 
     @locked_property
@@ -326,6 +363,13 @@ class Orbit(object):
         a = self._try_calc([_1,_2,_3])
         return a
 
+    @cached_property
+    def semi_minor_axis(self):
+        a = self.semi_major_axis
+        e = self.eccentricity
+        b = a * sqrt(abs(1 - e**2))
+        return b
+
     @locked_property
     def specific_angular_momentum_vector(self):
         x,y,z = self.position_at_epoch
@@ -413,13 +457,24 @@ class Orbit(object):
                 if vr < 0:
                     θ = 2*π - θ
             except LockError:
-                p,q = self.perifocal_position_at_epoch
-                r = self.radius_at_epoch
-                θ = arccos(p / r)
-                if q < 0:
-                    θ = 2*π - θ
+                try:
+                    p,q = self.perifocal_position_at_epoch
+                    r = self.radius_at_epoch
+                    θ = arccos(p / r)
+                    if q < 0:
+                        θ = 2*π - θ
+                except LockError:
+                    t0 = self.epoch
+                    θ = self.true_anomaly_at_time(t0)
+                    return θ
 
         return θ
+
+    @locked_property
+    def eccentric_anomaly_at_epoch(self):
+        t0 = self.epoch
+        E0 = self.eccentric_anomaly_at_time(t0)
+        return E0
 
     @locked_property
     def position_at_epoch(self):
@@ -801,8 +856,16 @@ class Orbit(object):
         return r
 
     def radius_at_time(self,t):
-        θ = self.true_anomaly_at_time(t)
-        r = self.radius_at_true_anomaly(θ)
+        try:
+            x = self.position_at_time(t)
+            if hasattr(t,'__iter__'):
+                r = sqrt((x**2).sum(axis=0))
+            else:
+                r = sqrt(sum(x**2))
+            return r
+        except RuntimeError:
+            θ = self.true_anomaly_at_time(t)
+            r = self.radius_at_true_anomaly(θ)
         return r
 
     def position_at_time(self,t):
@@ -923,11 +986,16 @@ class Orbit(object):
         def χinit(t,t0=t0):
             return sqrt(μ) * abs(α) * (t - t0)
 
-        if hasattr(t,'__iter__'):
-            χ = np.array([opt.newton(f(_t),χinit(_t),fprime=dfdχ) \
-                          for _t in t])
-        else:
-            χ = opt.newton(f(t),χinit(t),fprime=dfdχ)
+        try:
+            if hasattr(t,'__iter__'):
+                χ = np.array([opt.newton(f(_t),χinit(_t),fprime=dfdχ) \
+                              for _t in t])
+            else:
+                χ = opt.newton(f(t),χinit(t),fprime=dfdχ)
+        except RuntimeError as e:
+            print('Universal Anomaly Converenge Error')
+            print(self)
+            raise e
 
         return np.squeeze(χ)
 
@@ -1075,16 +1143,27 @@ class Orbit(object):
     def time_at_true_anomaly(self,θ):
         otype = self.orbit_type
         if otype.isclosed:
+            t0 = self.epoch
             T = self.period
             M = self.mean_anomaly_at_true_anomaly(θ)
-            t = (M / (2*π)) * T
+            t = t0 + (M / (2*π)) * T
         else:
+            t0 = self.epoch
             h = self.specific_angular_momentum
             e = self.eccentricity
             M = self.mean_anomaly_at_true_anomaly(θ)
             μ = self.body.gravitational_parameter
-            t = (h**3 / (μ**2 * (e**2 - 1)**(3/2))) * M
+            t = t0 + (h**3 / (μ**2 * (e**2 - 1)**(3/2))) * M
         return t
+
+    @locked_property
+    def time_to_periapsis_at_epoch(self):
+        t0 = self.epoch
+        θ = self.true_anomaly_at_epoch
+        T = self.period
+        t = self.time_at_true_anomaly(θ)
+        tpe = T - (t - t0)
+        return tpe
 
     @locked_property
     def latitude_at_epoch(self):
@@ -1104,9 +1183,8 @@ class Orbit(object):
 
     @locked_property
     def longitude_at_epoch(self):
-        x,y,z = self.position_at_epoch
-        λ = self.body.right_ascension_at_epoch
-        lon = ((arctan2(y,x) - λ + π/2) % (2*π)) - π
+        t0 = self.epoch
+        lon = self.longitude_at_time(t0)
         return lon
 
     def longitude_at_time(self,t):
@@ -1114,6 +1192,14 @@ class Orbit(object):
         λ = self.body.right_ascension_at_time(t)
         lon = ((arctan2(y,x) - λ + π/2) % (2*π)) - π
         return lon
+
+    @property
+    def longitude_of_periapsis(self):
+        π = np.pi
+        Ω = self.longitude_of_ascending_node
+        ω = self.argument_of_periapsis
+        ϖ = (Ω + ω) % (2*π)
+        return ϖ
 
     @staticmethod
     def from_radius_at_true_anomaly(r1,θ1,r2,θ2,body):

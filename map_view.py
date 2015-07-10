@@ -1,6 +1,8 @@
 import os
 import numpy as np
-from matplotlib import pyplot, ticker
+from matplotlib import pyplot, ticker, cm
+
+from .colorline import colorline
 
 ''' example using basemap:
 
@@ -51,29 +53,37 @@ class MapView(object):
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(_lat_fmt))
 
     @staticmethod
-    def split_tracks(lat,lon):
+    def split_tracks(lat,lon,*args):
         '''assumes eastward motion'''
         tracks = []
         lt,ln = [lat[0]],[lon[0]]
+        zz = [[z[0]] for z in args]
         for i in range(1,len(lon)):
             lt.append(lat[i])
+            for z,a in zip(zz,args):
+                z.append(a[i])
             d1 = abs(lon[i] - lon[i-1])
             d2 = abs((lon[i-1] + 360) - lon[i])
             d3 = abs(lon[i-1] - (lon[i] + 360))
             if d2 < d1:
                 ln.append(lon[i]-360)
-                tracks.append((np.array(lt),np.array(ln)))
+                tracks.append([np.array(lt),np.array(ln)] \
+                    + [np.array(z) for z in zz])
                 lt = [lat[i-1],lat[i]]
                 ln = [lon[i-1]+360,lon[i]]
+                zz = [[z[i-1]] for z in args]
             elif d3 < d1:
                 ln.append(lon[i]+360)
-                tracks.append((np.array(lt),np.array(ln)))
+                tracks.append([np.array(lt),np.array(ln)] \
+                    + [np.array(z) for z in zz])
                 lt = [lat[i-1],lat[i]]
                 ln = [lon[i-1]-360,lon[i]]
+                zz = [[z[i-1],z[i]] for z in args]
             else:
                 ln.append(lon[i])
         if len(lt):
-            tracks.append((np.array(lt),np.array(ln)))
+            tracks.append([np.array(lt),np.array(ln)] \
+                + [np.array(z) for z in zz])
         return tracks
 
     def plot_basemap(self,ax):
@@ -95,17 +105,29 @@ class MapView(object):
         return ax.plot(lon,lat,**kw)
 
     @staticmethod
-    def plot_track(ax,lat,lon,**kwargs):
-        kw = dict(
-            color = 'cyan',
-            alpha = 0.5,
-            lw = 4)
-        kw.update(**kwargs)
-        tracks = MapView.split_tracks(lat,lon)
-        pts = []
-        for lt,ln in tracks:
-            pts.append(ax.plot(ln,lt,**kw))
-        return pts
+    def plot_track(ax,lat,lon,z=None,**kwargs):
+        if z is None:
+            kw = dict(
+                color = 'cyan',
+                alpha = 0.5,
+                lw = 4)
+            kw.update(**kwargs)
+            tracks = MapView.split_tracks(lat,lon)
+            pts = []
+            for lt,ln in tracks:
+                pts.append(ax.plot(ln,lt,**kw))
+            return pts
+        else:
+            kw = dict(
+                alpha = 0.7,
+                lw = 4,
+                cmap = cm.jet)
+            kw.update(**kwargs)
+            tracks = MapView.split_tracks(lat,lon,z)
+            pts = []
+            for lt,ln,z in tracks:
+                pts.append(colorline(ax,ln,lt,z,**kw))
+            return pts
 
     @property
     def image(self):

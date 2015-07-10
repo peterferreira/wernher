@@ -9,6 +9,14 @@ class OrbitType(Enum):
     def __init__(self,val):
         self.val = val
 
+    def __str__(self):
+        names = {
+            0 : 'circular',
+            1 : 'elliptic',
+            2 : 'parabolic',
+            3 : 'hyperbolic'}
+        return names[self.val]
+
     @property
     def isclosed(self):
         return self.val in [0,1]

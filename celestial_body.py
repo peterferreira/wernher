@@ -14,12 +14,30 @@ class CelestialBody(object):
         for k,v in kwargs.items():
             setattr(self,k,v)
 
+    def __str__(self):
+        ra = self.right_ascension_at_epoch
+        msglines = '''\
+CelestialBody(
+    right_ascension_at_epoch = {right_ascension_at_epoch},
+    equatorial_radius = {equatorial_radius},
+    gravitational_parameter = {gravitational_parameter},
+)'''.split('\n')
+
+        msg = ''
+        for l in msglines:
+            try:
+                msg += l.format(**self.__dict__) + '\n'
+            except:
+                pass
+        return msg
+
+
     #self.name                    = body.name.lower()
     #self.gravitational_parameter = body.gravitational_parameter
     #self.equatorial_radius       = body.equatorial_radius
     #self.rotational_speed        = body.rotational_speed
 
-    @poperty
+    @property
     def epoch(self):
         return 0
 
