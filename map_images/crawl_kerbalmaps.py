@@ -33,6 +33,8 @@ maptypes = '''\
 
 zooms = range(6)
 
+
+
 def cols(zoom):
     return range(2**(zoom+1))
 
