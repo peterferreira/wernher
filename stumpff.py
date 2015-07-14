@@ -1,20 +1,10 @@
 import numpy as np
 
-π = np.pi
-inf = np.inf
-nan = np.nan
-
 sqrt = np.sqrt
 sin = np.sin
 cos = np.cos
-tan = np.tan
-arcsin = np.arcsin
-arccos = np.arccos
-arctan = np.arctan
-arctan2 = np.arctan2
 sinh = np.sinh
 cosh = np.cosh
-arctanh = np.arctanh
 
 def stumpff_c(z):
     if hasattr(z,'__iter__'):
