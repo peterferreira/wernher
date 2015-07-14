@@ -1,7 +1,8 @@
 import unittest
 
 import numpy as np
-from ksp.orbit import Orbit, OrbitType
+from ksp import Orbit, OrbitType, CelestialBody, plot_orbit_3d
+from matplotlib import pyplot
 
 arctan2 = np.arctan2
 arccos = np.arccos
@@ -50,9 +51,9 @@ class Bunch(dict):
 
 class TestOrbit(unittest.TestCase):
 
-    def isclose(self,x,y):
+    def isclose(self,x,y,rtol=1e-4,atol=1e-4):
         msg = '{} != {}'.format(x,y)
-        self.assertTrue(np.isclose(x,y,rtol=1e-4,atol=1e-4),msg)
+        self.assertTrue(np.isclose(x,y,rtol=rtol,atol=atol),msg)
 
     def test_curtis_ex2_5(self):
         def setup_orbit():
@@ -428,6 +429,7 @@ class TestOrbit(unittest.TestCase):
         self.isclose(o.eccentric_anomaly_at_true_anomaly(θb),0.80521)
         self.isclose(o.mean_anomaly_at_true_anomaly(θb),0.62749)
 
+        o.epoch = 0
         ta = o.time_at_true_anomaly(θa)
         tb = o.time_at_true_anomaly(θb)
         tc = o.time_at_true_anomaly(θc)
@@ -448,7 +450,10 @@ class TestOrbit(unittest.TestCase):
                 orbit_type = OrbitType.parabolic,
                 vpe = 10*km,
                 θ0 = 0,
-                t0 = 0)
+                t0 = 0,
+                i = 0,
+                Ω = 0,
+                ω = 0)
 
 
         o = setup_orbit()
@@ -479,7 +484,10 @@ class TestOrbit(unittest.TestCase):
                 vpe = 15*km,
                 pe_alt = 300*km,
                 θ0 = 0,
-                t0 = 0)
+                t0 = 0,
+                i = 0,
+                Ω = 0,
+                ω = 0)
 
         θ = 100*deg
 
@@ -526,12 +534,10 @@ class TestOrbit(unittest.TestCase):
 
             o = Orbit(body=b)
             o.epoch = 0
-            o.universal_anomaly_at_epoch = 0
             o.true_anomaly_at_epoch = 30*deg
             o.radius_at_epoch = 10000*km
             o.speed_at_epoch = 10*km
             return o
-
 
         o = setup_orbit()
         self.isclose(o.e,1.4682)
@@ -600,6 +606,53 @@ class TestOrbit(unittest.TestCase):
         self.isclose(v[1],-0.96404*km)
         self.isclose(v[2],0)
 
+    def test_curtis_ex3_16(self):
+        def setup_orbit():
+            b = CelestialBody(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b)
+            o.epoch = 0
+            o.periapsis = 6600*km
+            o.speed_at_periapsis = 1.2 * b.escape_speed(6600*km)
+            return o
+
+        o = setup_orbit()
+        t0 = o.time_at_true_anomaly(-90*deg)
+        t1 = o.time_at_true_anomaly(90*deg)
+        self.isclose(t1-t0, 0.9992*60*60)
+
+        o.θ0 = 0
+        r = o.radius_at_time(24*60*60)
+        self.isclose(r, 656610*km)
+
+    def test_curtis_ex3_19(self):
+        def setup_orbit():
+            b = CelestialBody(
+                equatorial_radius = 6378*km,
+                gravitational_parameter = 398600*km**3)
+            o = Orbit(body=b)
+            o.epoch = 0
+            o.radius_at_epoch = 7200*km
+            o.radial_speed_at_epoch = 1*km
+            o.semi_major_axis = 10000*km
+            o.i = 0
+            o.Ω = 0
+            o.ω = 0
+            return o
+
+        #o = setup_orbit()
+        #F0 = o.eccentric_anomaly_at_epoch
+        #F = o.eccentric_anomaly_at_time(o.epoch + 60*60)
+        #print(np.sqrt(-o.a) * (F - F0))
+
+        o = setup_orbit()
+        χ = o.universal_anomaly_at_time(o.epoch + 60*60)
+        #print(χ)
+
+
+
+
     def test_curtis_ex4_1(self):
         def setup_orbit():
             b = Bunch(
@@ -642,57 +695,6 @@ class TestOrbit(unittest.TestCase):
         self.isclose(v[0],7.2284*km)
         self.isclose(v[1],1.9997*km)
         self.isclose(v[2],-0.46296*km)
-
-        '''
-        import matplotlib as mpl
-        from mpl_toolkits.mplot3d import Axes3D
-        import numpy as np
-        import matplotlib.pyplot as plt
-
-        T = o.period
-        npoints = 50
-        tt = np.linspace(0,T,npoints)
-        f,g,df,fg = o.lagrange_coefficients_at_time(tt)
-        xx,yy,zz = o.position_at_lagrange_coefficients(f,g)
-
-
-        mpl.rcParams['legend.fontsize'] = 10
-
-        def axisEqual3D(ax):
-            extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
-            sz = extents[:,1] - extents[:,0]
-            centers = np.mean(extents, axis=1)
-            maxsize = max(abs(sz))
-            r = maxsize/2
-            for ctr, dim in zip(centers, 'xyz'):
-                getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
-
-        def plot_sphere(ax, position, radius, *args, **kwargs):
-            u = np.linspace(0, 2 * np.pi, 360)
-            v = np.linspace(0, np.pi, 180)
-            x0,y0,z0 = position
-            x = x0 + radius * np.outer(np.cos(u), np.sin(v))
-            y = y0 + radius * np.outer(np.sin(u), np.sin(v))
-            z = z0 + radius * np.outer(np.ones(np.size(u)), np.cos(v))
-            ax.plot_surface(x, y, z, *args, **kwargs)
-
-
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        ax.plot(xx/km,yy/km,zz/km,label='orbit',lw=3)
-        plot_sphere(ax,(0,0,0),6378, alpha=0.7, color='lightblue')
-
-        x,y,z = o.position_at_ascending_node/km
-        ax.plot([x],[y],[z], marker='o', markersize=10)
-
-        x,y,z = o.position_at_descending_node/km
-        ax.plot([x],[y],[z], marker='o', markersize=10)
-
-        ax.legend()
-        axisEqual3D(ax)
-
-        plt.show()
-        '''
 
 
     def test_curtis_ex4_3(self):
@@ -820,22 +822,179 @@ class TestOrbit(unittest.TestCase):
         pyplot.show()
         '''
 
-
-    def test_eccentric_orbits(self):
-        Orbit(
-            i  = 0.006359573424004239,
-            Ω  = 1.389406414342948,
-            ω  = 3.632513749814486,
-            e  = 0.9707201936244859,
-            a  = 24944192.309278008,
-            h  = 2254587334.319714,
-            M0 = 0.0030085453285313146,
-            θ0 = 0.7622806427564783,
-            x0 = [ 742506.75649105 -404660.56124168   -5108.87074686],
-            v0 = [ 742506.75649105 -404660.56124168   -5108.87074686],
-            t0 = 34056533.96247198,
+    def test_elliptic_orbits_1(self):
+        def setup_orbit():
+            return Orbit(
+                i  = 0.14,
+                Ω  = 3.9,
+                ω  = 0.2,
+                e  = 0.1,
+                a  = 8850000,
+                M0 = 5,
+                t0 = 34000000,
+                body = CelestialBody(
+                    name = 'kerbin',
+                    equatorial_radius = 600000.0,
+                    gravitational_parameter = 3531600035840.0,
+                    rotational_speed = 0.0002908894093707204,
+                ),
             )
 
+        o = setup_orbit()
+        #print('x0',o.radius_at_epoch,o.position_at_epoch)
+        #print('v0',o.speed_at_epoch,o.velocity_at_epoch)
+        #print('vr0',o.radial_speed_at_epoch)
+        #print('γ',o.flight_path_angle_at_epoch)
+
+        tt = np.linspace(o.epoch,o.epoch+1*6*60*60,50)
+        χχexpect = np.sqrt(o.a) \
+            * (o.eccentric_anomaly_at_time(tt) \
+            - o.eccentric_anomaly_at_epoch)
+        χχ = o.universal_anomaly_at_time(tt)
+
+        #from matplotlib import pyplot
+        #pyplot.plot(tt,χχexpect, color='blue')
+        #pyplot.plot(tt[[0,-1]],χχexpect[[0,-1]], color='lightblue')
+        #pyplot.plot(tt,χχ, color='red')
+        #pyplot.plot(tt[[0,-1]],χχ[[0,-1]], color='pink')
+        #pyplot.show()
+
+        #plot_orbit_3d(o)
+        #pyplot.show()
+
+
+
+    def test_hyperbolic_orbits_1(self):
+        o = Orbit(
+            i  = 0.14170287439640022,
+            Ω  = 3.978394514307273,
+            ω  = 0.22281479333802098,
+            e  = 1.077961355413604,
+            a  = -8856935.204227254,
+            M0 = -6.003136275330101,
+            t0 = 34056451.522458464,
+            body = CelestialBody(
+                name = 'kerbin',
+                equatorial_radius = 600000.0,
+                gravitational_parameter = 3531600035840.0,
+                rotational_speed = 0.0002908894093707204,
+            ),
+        )
+
+        t = o.epoch
+        tpe = o.time_to_periapsis_at_epoch
+        npoints = 10
+        tmin = t + tpe - 30
+        tmax = t + tpe + 30
+
+        tt = np.linspace(tmin,tmax,npoints)
+        lat = o.latitude_at_time(tt) / deg
+        lon = o.longitude_at_time(tt) / deg
+        r = o.radius_at_time(tt)
+
+        #print(list(zip(r,lat,lon)))
+
+        #for out,r,lat,lon in zip(expected,r,lat,lon):
+        #    out_r,out_lat,out_lon = out
+        #    self.isclose(out_r,r)
+        #    self.isclose(out_lat,lat)
+        #    self.isclose(out_lon,lon)
+
+
+    def test_hyperbolic_orbits_2(self):
+        # same orbit pulled from KSP at different times
+        # lots of jitter, so tolerance for radius at time
+        # is quite large (1%)
+        o1 = Orbit(
+            i  = 0.14149227768205455,
+            Ω  = 3.977254620789031,
+            ω  = 0.22395653996553322,
+            e  = 1.0779572208620696,
+            a  = -8855744.039847286,
+            M0 = -6.0078569863130475,
+            t0 = 34056398.642449796,
+            body = CelestialBody(
+                name = 'Kerbin',
+                equatorial_radius = 600000.0,
+                gravitational_parameter = 3531600035840.0,
+                rotational_speed = 0.0002908894093707204,
+            ),
+        )
+        o2 = Orbit(
+            i  = 0.14311811324451928,
+            Ω  = 3.9859850089566558,
+            ω  = 0.21660875587091438,
+            e  = 1.07736727693924,
+            a  = -8880527.593801336,
+            M0 = -0.012499818155590287,
+            t0 = 34140525.998688884,
+            body = CelestialBody(
+                name = 'Kerbin',
+                equatorial_radius = 600000.0,
+                gravitational_parameter = 3531600035840.0,
+                rotational_speed = 0.0002908894093707204,
+            ),
+        )
+
+        tpe1 = o1.time_to_periapsis_at_epoch
+        tpe2 = o2.time_to_periapsis_at_epoch
+        self.isclose(o1.epoch+tpe1, o2.epoch+tpe2)
+
+        χexpect1 = np.sqrt(-o1.a) \
+            * (o1.eccentric_anomaly_at_time(o1.epoch+tpe1) \
+            - o1.eccentric_anomaly_at_epoch)
+        χexpect2 = np.sqrt(-o2.a) \
+            * (o2.eccentric_anomaly_at_time(o2.epoch+tpe2) \
+            - o2.eccentric_anomaly_at_epoch)
+
+        tt = np.linspace(o1.epoch,o1.epoch+1*6*60*60,50)
+        χχexpect = np.sqrt(-o1.a) \
+            * (o1.eccentric_anomaly_at_time(tt) \
+            - o1.eccentric_anomaly_at_epoch)
+        χχ = o1.universal_anomaly_at_time(tt)
+
+        t0 = o1.epoch
+        r0 = o1.radius_at_epoch
+        vr0 = o1.radial_speed_at_epoch
+        a = o1.semi_major_axis
+        x0 = o1.position_at_epoch/km
+        v0 = o1.velocity_at_epoch
+        #print('t0',t0)
+        #print('r0',r0)
+        #print('vr0',vr0)
+        #print('a',a)
+        #print('x0',x0)
+        #print('v0',v0)
+
+        #from matplotlib import pyplot
+        #pyplot.plot(tt,χχexpect, color='blue')
+        #pyplot.plot(tt[[0,-1]],χχexpect[[0,-1]], color='lightblue')
+        #pyplot.plot(tt,χχ, color='red')
+        #pyplot.plot(tt[[0,-1]],χχ[[0,-1]], color='pink')
+        #pyplot.show()
+
+        #print('θpe1',o1.true_anomaly_at_time(o1.epoch+tpe1))
+        #print('θpe2',o2.true_anomaly_at_time(o2.epoch+tpe2))
+
+        #print('rpeθ1',o1.radius_at_true_anomaly(
+        #o1.true_anomaly_at_time(o1.epoch+tpe1)))
+        #print('rpeθ2',o2.radius_at_true_anomaly(
+        #o2.true_anomaly_at_time(o2.epoch+tpe2)))
+
+        f1,g1,df1,dg1 = o1.lagrange_coefficients_at_time(o1.epoch+tpe1)
+        f2,g2,df2,dg2 = o2.lagrange_coefficients_at_time(o2.epoch+tpe2)
+        x1 = o1.position_at_lagrange_coefficients(f1,g1)
+        x2 = o2.position_at_lagrange_coefficients(f2,g2)
+        #print('rpe1(χexp)',np.sqrt(sum(x1**2)))
+        #print('rpe2(χexp)',np.sqrt(sum(x2**2)))
+
+        self.isclose(o2.periapsis, o2.radius_at_time(o2.epoch+tpe2))
+        self.isclose(o1.periapsis, o1.radius_at_time(o1.epoch+tpe1))
+
+        self.isclose(o1.periapsis, o2.periapsis,rtol=1e-2)
+        self.isclose(o1.radius_at_time(o1.epoch+tpe1),
+                     o2.radius_at_time(o2.epoch+tpe2),
+                     rtol=0.01)
 
 if __name__ == '__main__':
     unittest.main()

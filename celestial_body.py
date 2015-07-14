@@ -21,6 +21,7 @@ CelestialBody(
     right_ascension_at_epoch = {right_ascension_at_epoch},
     equatorial_radius = {equatorial_radius},
     gravitational_parameter = {gravitational_parameter},
+    rotational_speed = {rotational_speed},
 )'''.split('\n')
 
         msg = ''

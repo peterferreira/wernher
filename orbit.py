@@ -529,7 +529,12 @@ Orbit(
         try:
             v = self.speed_at_epoch
             γ = self.flight_path_angle_at_epoch
-            vr = v / sqrt((1/tan(γ)**2) + 1)
+            if abs(γ) < 1e-5:
+                vr = 0
+            else:
+                vr = v / sqrt((1/tan(γ)**2) + 1)
+            if γ < 0:
+                vr *= -1
         except LockError:
             x,y,z = self.position_at_epoch
             vx,vy,vz = self.velocity_at_epoch
@@ -863,7 +868,7 @@ Orbit(
             else:
                 r = sqrt(sum(x**2))
             return r
-        except RuntimeError:
+        except (LockError,RuntimeError):
             θ = self.true_anomaly_at_time(t)
             r = self.radius_at_true_anomaly(θ)
         return r
@@ -965,8 +970,8 @@ Orbit(
         B = r0 * vr0 / sqrt(μ)
         C = r0
         D = -sqrt(μ)
-        def f(t):
-            def _f(χ,α=α,t0=t0,A=A,B=B,C=C,D=D):
+        def f(t,α=α,t0=t0,A=A,B=B,C=C,D=D):
+            def _f(χ,α=α,t=t,t0=t0,A=A,B=B,C=C,D=D):
                 return A * χ**3 * stumpff_s(α * χ**2) \
                      + B * χ**2 * stumpff_c(α * χ**2) \
                      + C * χ \
@@ -983,7 +988,7 @@ Orbit(
                  + G * χ \
                  + H
 
-        def χinit(t,t0=t0):
+        def χinit(t,t0=t0,α=α,μ=μ):
             return sqrt(μ) * abs(α) * (t - t0)
 
         try:
@@ -1158,11 +1163,20 @@ Orbit(
 
     @locked_property
     def time_to_periapsis_at_epoch(self):
-        t0 = self.epoch
-        θ = self.true_anomaly_at_epoch
-        T = self.period
-        t = self.time_at_true_anomaly(θ)
-        tpe = T - (t - t0)
+        if self.orbit_type.isclosed:
+            t0 = self.epoch
+            θ = self.true_anomaly_at_epoch
+            T = self.period
+            t = self.time_at_true_anomaly(θ)
+            tpe = T - (t - t0)
+        else:
+            t0 = self.epoch
+            θ = self.true_anomaly_at_epoch
+            if θ < 0:
+                t = self.time_at_true_anomaly(θ)
+                tpe = t0 - t
+            else:
+                tpe = nan
         return tpe
 
     @locked_property
