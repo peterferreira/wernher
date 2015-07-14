@@ -1,0 +1,1 @@
+python3 -m pytest --cov=wernher --cov-report=term test
