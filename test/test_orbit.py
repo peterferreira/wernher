@@ -1,8 +1,7 @@
-import unittest
-
 import numpy as np
-from ksp import Orbit, OrbitType, CelestialBody, plot_orbit_3d
 from matplotlib import pyplot
+
+from wernher import Orbit, OrbitType, CelestialBody, plot_orbit_3d
 
 arctan2 = np.arctan2
 arccos = np.arccos
@@ -49,11 +48,11 @@ class Bunch(dict):
             object.__delattr__(self, k)
 
 
-class TestOrbit(unittest.TestCase):
+class TestOrbit:
 
     def isclose(self,x,y,rtol=1e-4,atol=1e-4):
         msg = '{} != {}'.format(x,y)
-        self.assertTrue(np.isclose(x,y,rtol=rtol,atol=atol),msg)
+        assert np.isclose(x,y,rtol=rtol,atol=atol), msg
 
     def test_curtis_ex2_5(self):
         def setup_orbit():
@@ -205,7 +204,7 @@ class TestOrbit(unittest.TestCase):
             return o
 
         o = setup_orbit()
-        self.assertTrue(o.orbit_type is OrbitType.hyperbolic)
+        assert o.orbit_type is OrbitType.hyperbolic
 
         o = setup_orbit()
         self.isclose(o.tangent_speed_at_epoch,5.528*km)
@@ -280,7 +279,7 @@ class TestOrbit(unittest.TestCase):
         self.isclose(o.e, 1.1077)
 
         o = setup_orbit()
-        self.assertTrue(o.orbit_type is OrbitType.hyperbolic)
+        assert o.orbit_type is OrbitType.hyperbolic
 
     def test_curtis_ex2_13(self):
         def setup_orbit():

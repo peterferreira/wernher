@@ -31,8 +31,9 @@ maptypes = '''\
     biome
 '''.split()
 
-zooms = range(6)
 
+# change to range(6) to get *all* maps (about 2GB of data total)
+zooms = range(3)
 
 
 def cols(zoom):
