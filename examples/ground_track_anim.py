@@ -35,6 +35,7 @@ def updatefig(tick):
     if tick == 0:
         return []
 
+    # each update will increment the clock by one minute
     t = orbit.epoch + tick*60
 
     # ground track consists of 200 points
@@ -84,7 +85,7 @@ def updatefig(tick):
 ani = animation.FuncAnimation(
     fig,
     updatefig,
-    interval=10,
+    interval=10, # update every 10 ms
     blit=True,
     init_func=initfig)
 
