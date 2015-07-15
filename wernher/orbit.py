@@ -59,7 +59,6 @@ class Orbit(object):
 
         r0      radius_at_epoch
         b       semi_minor_axis
-        ϖ       longitude_of_periapsis
         ap      apoapsis
         pe      periapsis
         ap_alt  apoapsis_altitude
@@ -1168,7 +1167,7 @@ Orbit(
             θ = self.true_anomaly_at_epoch
             T = self.period
             t = self.time_at_true_anomaly(θ)
-            tpe = T - (t - t0)
+            tpe = t0 - t ###T - (t - t0)
         else:
             t0 = self.epoch
             θ = self.true_anomaly_at_epoch
@@ -1195,6 +1194,42 @@ Orbit(
         lat = δ
         return lat
 
+    def latitude_at_periapsis(self,n=0):
+        if self.orbit_type.isclosed:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            T = self.period
+            lon = self.latitude_at_time(t0 + tpe + n*T)
+        else:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            lon = self.latitude_at_time(t0 + tpe)
+        return lon
+
+    def latitude_at_periapsis_after_time(self,t):
+        if self.orbit_type.isclosed:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            T = self.period
+            lat = self.latitude_at_periapsis(((t - t0 - tpe) // T) + 1)
+        else:
+            lat = self.latitude_at_periapsis()
+        return lat
+
+    def latitude_at_apoapsis(self,n=0):
+        t0 = self.epoch
+        tpe = self.time_to_periapsis_at_epoch
+        T = self.period
+        lon = self.latitude_at_time(t0 + tpe + (0.5+n)*T)
+        return lon
+
+    def latitude_at_apoapsis_after_time(self,t):
+        t0 = self.epoch
+        tpe = self.time_to_periapsis_at_epoch
+        T = self.period
+        lat = self.latitude_at_apoapsis(((t - t0 - tpe - 0.5*T) // T) + 1)
+        return lat
+
     @locked_property
     def longitude_at_epoch(self):
         t0 = self.epoch
@@ -1214,6 +1249,42 @@ Orbit(
         ω = self.argument_of_periapsis
         ϖ = (Ω + ω) % (2*π)
         return ϖ
+
+    def longitude_at_periapsis(self,n=0):
+        if self.orbit_type.isclosed:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            T = self.period
+            lon = self.longitude_at_time(t0 + tpe + n*T)
+        else:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            lon = self.longitude_at_time(t0 + tpe)
+        return lon
+
+    def longitude_at_periapsis_after_time(self,t):
+        if self.orbit_type.isclosed:
+            t0 = self.epoch
+            tpe = self.time_to_periapsis_at_epoch
+            T = self.period
+            lon = self.longitude_at_periapsis(((t - t0 - tpe) // T) + 1)
+        else:
+            lon = self.longitude_at_periapsis()
+        return lon
+
+    def longitude_at_apoapsis(self,n=0):
+        t0 = self.epoch
+        tpe = self.time_to_periapsis_at_epoch
+        T = self.period
+        lon = self.longitude_at_time(t0 + tpe + (0.5+n)*T)
+        return lon
+
+    def longitude_at_apoapsis_after_time(self,t):
+        t0 = self.epoch
+        tpe = self.time_to_periapsis_at_epoch
+        T = self.period
+        lon = self.longitude_at_apoapsis(((t - t0 - tpe - 0.5*T) // T) + 1)
+        return lon
 
     @staticmethod
     def from_radius_at_true_anomaly(r1,θ1,r2,θ2,body):

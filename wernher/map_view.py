@@ -87,22 +87,23 @@ class MapView(object):
         return tracks
 
     def plot_basemap(self,ax):
-        ax.imshow(self.image,
+        im = ax.imshow(self.image,
             extent=[-180,180,-90,90],
             aspect='equal',
             origin='lower')
         ax.grid(True)
         MapView.set_ticks(ax)
         ax.autoscale(False)
+        return im
 
     @staticmethod
     def plot_marker(ax,lat,lon,**kwargs):
         kw = dict(
-            color = 'red',
+            color = 'black',
             marker = 'o',
             markersize = 10)
         kw.update(**kwargs)
-        return ax.plot(lon,lat,**kw)
+        return ax.plot(lon,lat,**kw)[0]
 
     @staticmethod
     def plot_track(ax,lat,lon,z=None,**kwargs):
@@ -110,7 +111,7 @@ class MapView(object):
             kw = dict(
                 color = 'cyan',
                 alpha = 0.5,
-                lw = 4)
+                lw = 3)
             kw.update(**kwargs)
             tracks = MapView.split_tracks(lat,lon)
             pts = []
@@ -120,7 +121,7 @@ class MapView(object):
         else:
             kw = dict(
                 alpha = 0.7,
-                lw = 4,
+                lw = 3,
                 cmap = cm.jet,
                 norm = colors.Normalize(vmin=z.min(), vmax=z.max()))
             kw.update(**kwargs)
