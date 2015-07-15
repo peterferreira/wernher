@@ -50,7 +50,7 @@ print('altitude in 1 hour:',(r-R)/km,'km')
 
 Ground tracks require the underlying maps to be downloaded. you can run the script found in the ``map_images`` directory to scrape the website kerbalmaps.com until I can find suitable storage for such files. It will download images of the lowest three resolutions for every planet and moon in KSP along with biome and slope maps.
 
-Here we show an example of how to plot the ground track over Kerbin using the same preamble as above::
+Here we show an example of how to plot the ground track over Kerbin::
 
 ```python
 import wernher
