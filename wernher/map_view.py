@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from matplotlib import pyplot, ticker, cm
+from matplotlib import pyplot, ticker, cm, colors
 
 from .colorline import colorline
 
@@ -121,12 +121,14 @@ class MapView(object):
             kw = dict(
                 alpha = 0.7,
                 lw = 4,
-                cmap = cm.jet)
+                cmap = cm.jet,
+                norm = colors.Normalize(vmin=z.min(), vmax=z.max()))
             kw.update(**kwargs)
             tracks = MapView.split_tracks(lat,lon,z)
             pts = []
             for lt,ln,z in tracks:
                 pts.append(colorline(ax,ln,lt,z,**kw))
+
             return pts
 
     @property

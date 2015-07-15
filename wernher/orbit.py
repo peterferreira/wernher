@@ -1238,3 +1238,20 @@ Orbit(
         r2 = z2 + R
         orbit = Orbit.from_radius_at_true_anomaly(r1,θ1,r2,θ2,body)
         return orbit
+
+    @staticmethod
+    def from_krpc(ksc,orbit):
+        body = CelestialBody(
+            name = orbit.body.name,
+            gravitational_parameter = orbit.body.gravitational_parameter,
+            equatorial_radius = orbit.body.equatorial_radius,
+            rotational_speed = orbit.body.rotational_speed)
+        return Orbit(
+            t0 = ksc.ut,
+            i  = orbit.inclination,
+            Ω  = orbit.longitude_of_ascending_node,
+            ω  = orbit.argument_of_periapsis,
+            e  = orbit.eccentricity,
+            a  = orbit.semi_major_axis,
+            M0 = orbit.mean_anomaly_at_epoch,
+            body = body)

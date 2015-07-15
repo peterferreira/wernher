@@ -13,26 +13,10 @@ The primary object is the ``Orbit`` class. It can be initialized from the active
 ```python
 import krpc, wernher
 
-def orbit_from_krpc_orbit(ksc,obt):
-    body = wernher.CelestialBody(
-        name = obt.body.name,
-        gravitational_parameter = obt.body.gravitational_parameter,
-        equatorial_radius = obt.body.equatorial_radius,
-        rotational_speed = obt.body.rotational_speed)
-    return wernher.Orbit(
-        t0 = ksc.ut,
-        i  = obt.inclination,
-        Ω  = obt.longitude_of_ascending_node,
-        ω  = obt.argument_of_periapsis,
-        e  = obt.eccentricity,
-        a  = obt.semi_major_axis,
-        M0 = obt.mean_anomaly_at_epoch,
-        body = body)
-
 conn = krpc.connect(name='laptop0', address='192.168.1.2')
 ksc = conn.space_center
 vessel = ksc.active_vessel
-orbit = orbit_from_krpc_orbit(ksc,vessel.orbit)
+orbit = wernher.Orbit.from_krpc(ksc,vessel.orbit)
 ```
 
 Now you can find the altitude of the vessel 1 hour in the future::
