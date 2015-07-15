@@ -144,7 +144,7 @@ class MapView(object):
 
         curdir = os.path.dirname(os.path.realpath(__file__))
         fpath = os.path.join(curdir,
-            'map_images',bodyname,maptype,str(zoomlevel))
+            '..','map_images',bodyname,maptype,str(zoomlevel))
         ffmt = '{col}_{row}.png'
 
         images = []
