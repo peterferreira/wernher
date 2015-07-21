@@ -5,7 +5,6 @@ import wernher
 π = np.pi
 deg = π/180
 km = 1000
-
 body = wernher.CelestialBody(
     name = 'kerbin',
     gravitational_parameter = 3.5316e12,
@@ -28,27 +27,29 @@ R = orbit.body.equatorial_radius
 
 fig,ax = pyplot.subplots()
 ax.set_aspect('equal')
+ax.set_axis_off()
+ax.margins(.01,.03)
 
 # planet
-ax.fill_between(R*np.cos(θθ), R*np.sin(θθ), lw=0)
+_=ax.fill_between(-R*np.cos(θθ), R*np.sin(θθ), lw=0)
 
 # orbit
-ax.plot(rr*np.cos(θθ), rr*np.sin(θθ), lw=2)
+_=ax.plot(-rr*np.cos(θθ), rr*np.sin(θθ), lw=2)
 
-ax.annotate(str(orbit.pe/km)+' km',
-    xy=( orbit.pe,0,),
-    xycoords = 'data',
-    xytext=(-10,0),
-    textcoords = 'offset points',
-    ha="right", va="center",
-    bbox=dict(boxstyle="round", color='white', linewidth=0, alpha=0.7),
-    )
-ax.annotate(str(orbit.ap/km)+' km',
-    xy=(-orbit.ap,0),
+_=ax.annotate(str(orbit.pe/km)+' km',
+    xy=(-orbit.pe,0,),
     xycoords = 'data',
     xytext=(10,0),
     textcoords = 'offset points',
     ha="left", va="center",
+    bbox=dict(boxstyle="round", color='white', linewidth=0, alpha=0.7),
+    )
+_=ax.annotate(str(orbit.ap/km)+' km',
+    xy=(orbit.ap,0),
+    xycoords = 'data',
+    xytext=(-10,0),
+    textcoords = 'offset points',
+    ha="right", va="center",
     bbox=dict(boxstyle="round", color='white', linewidth=0, alpha=0.7),
     )
 

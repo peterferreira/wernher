@@ -33,7 +33,7 @@ orbit = wernher.Orbit(
 
 R = orbit.body.equatorial_radius
 vpe = orbit.speed_at_periapsis
-Δt = π*R / vpe
+Δt = 10*π*R / vpe
 
 t0 = orbit.epoch
 tpe = orbit.time_to_periapsis_at_epoch
@@ -64,7 +64,7 @@ mview.zoomlevel = 1
 mview.plot_basemap(ax)
 
 # plot ground track
-tk = wernher.MapView.plot_track(ax,lat,lon,r,cmap=cm.cubehelix_r)
+tk = wernher.MapView.plot_track(ax,lat,lon,r)#,cmap=cm.cubehelix_r)
 
 # place marker for the vessel location
 mk = wernher.MapView.plot_marker(ax,
