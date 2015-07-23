@@ -42,7 +42,7 @@ class Controller(object):
         kd = self.kd
 
         # if parameters are all zero or None, return set point
-        if not all([kp,ki,kd]):
+        if not any([kp,ki,kd]):
             self.t0 = t
             return xset
 
@@ -50,7 +50,6 @@ class Controller(object):
         t0 = self.t0
         I  = self.I
         P0 = self.P0
-        ti = self.ti
 
         # calculate PID terms
         Δt = t - t0
@@ -60,24 +59,27 @@ class Controller(object):
 
         # freeze integral for a small time on
         # a large disturbance
-        if abs(kp*ΔP) > 0.5*(self.max - self.min):
-            self._t0_freeze_I = t
-        else:
-            try:
-                if (t - self._t0_freeze_I) > ti:
-                    del self._t0_freeze_I
+        if self.ki > 0:
+            if abs(kp*ΔP) > 0.5*(self.max - self.min):
+                self._t0_freeze_I = t
+            else:
+                try:
+                    if (t - self._t0_freeze_I) > self.ti:
+                        del self._t0_freeze_I
+                        I += P * Δt
+                except AttributeError:
                     I += P * Δt
-            except AttributeError:
-                I += P * Δt
 
-        # clip proportional gain and turn off
-        # integral term if P*km is out of the
-        # control range
+            # turn off integral term if P*km is out of the
+            # control range
+            if not (self.min < kp*P < self.max):
+                I = 0
+            else:
+                I = min(max(I, self.min/ki), self.max/ki)
+
+        # clip proportional gain
         if not (self.min < kp*P < self.max):
             P = min(max(P, self.min/kp), self.max/kp)
-            I = 0
-        else:
-            I = min(max(I, self.min/ki), self.max/ki)
 
         c = kp*P + ki*I + kd*D
 
@@ -125,7 +127,7 @@ class Controller(object):
         self.ki = 2*self.kp/tu
         self.kd = self.kp*tu/8
 
-    def ziegler_nichols(ku,tu,control_type='pid'):
+    def ziegler_nichols(self,ku,tu,control_type='pid'):
         '''
             ku = ultimate gain
             tu = period of oscillation at ultimate gain
