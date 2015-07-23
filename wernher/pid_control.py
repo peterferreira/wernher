@@ -1,5 +1,8 @@
 import numpy as np
 
+inf = np.inf
+isclose = np.isclose
+
 class Controller(object):
     '''Single Axis PID Controller
     goals:
@@ -20,12 +23,16 @@ class Controller(object):
         self.I  = 0
         self.P0 = 0
 
+        # limits
+        self.min = -inf
+        self.max =  inf
+
         # response value of previous call
         self.c = 0
 
     def __call__(self,x,t):
         # return previous value if no time has passed
-        if np.isclose(t - self.t0, 0):
+        if isclose(t - self.t0, 0):
             return self.c
 
         # bring instance variables into local scope
@@ -43,14 +50,39 @@ class Controller(object):
         t0 = self.t0
         I  = self.I
         P0 = self.P0
+        ti = self.ti
 
-        # calculate PID control
+        # calculate PID terms
         Δt = t - t0
         P = xset - x
-        I += P * Δt
-        D = (P - P0) / Δt
+        ΔP = P - P0
+        D = ΔP / Δt
+
+        # freeze integral for a small time on
+        # a large disturbance
+        if abs(kp*ΔP) > 0.5*(self.max - self.min):
+            self._t0_freeze_I = t
+        else:
+            try:
+                if (t - self._t0_freeze_I) > ti:
+                    del self._t0_freeze_I
+                    I += P * Δt
+            except AttributeError:
+                I += P * Δt
+
+        # clip proportional gain and turn off
+        # integral term if P*km is out of the
+        # control range
+        if not (self.min < kp*P < self.max):
+            P = min(max(P, self.min/kp), self.max/kp)
+            I = 0
+        else:
+            I = min(max(I, self.min/ki), self.max/ki)
 
         c = kp*P + ki*I + kd*D
+
+        # clip output to specified limits
+        c = min(max(c, self.min), self.max)
 
         # save parameters to class instance
         self.t0 = t
