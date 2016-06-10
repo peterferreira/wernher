@@ -4,15 +4,11 @@ inf = np.inf
 isclose = np.isclose
 
 class Controller(object):
-    '''Single Axis PID Controller
-    goals:
-        self-tuning
-        edge-case switching to PD or PI
-    '''
-
-    def __init__(self,set_point=0,kp=1,ki=0,kd=0,t0=0):
+    '''Single Axis PID Controller'''
+    def __init__(self,set_point=0,limits=(-inf,inf),kp=1,ki=0,kd=0,t0=0):
         # set point and control constants
         self.set_point = set_point
+        self.cmin,self.cmax = limits
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -20,12 +16,8 @@ class Controller(object):
         # time of previous call, running integral and
         # proportional term of previous call
         self.t0 = t0
-        self.I  = 0
+        self.kiI  = 0
         self.P0 = 0
-
-        # limits
-        self.min = -inf
-        self.max =  inf
 
         # response value of previous call
         self.c = 0
@@ -37,6 +29,8 @@ class Controller(object):
 
         # bring instance variables into local scope
         xset = self.set_point
+        cmin = self.cmin
+        cmax = self.cmax
         kp = self.kp
         ki = self.ki
         kd = self.kd
@@ -48,7 +42,7 @@ class Controller(object):
 
         # bring instance variables into local scope
         t0 = self.t0
-        I  = self.I
+        kiI  = self.kiI
         P0 = self.P0
 
         # calculate PID terms
@@ -57,38 +51,21 @@ class Controller(object):
         ΔP = P - P0
         D = ΔP / Δt
 
-        # freeze integral for a small time on
-        # a large disturbance
         if self.ki > 0:
-            if abs(kp*ΔP) > 0.5*(self.max - self.min):
-                self._t0_freeze_I = t
+            if not (cmin < kp*P < cmax):
+                kiI = 0
             else:
-                try:
-                    if (t - self._t0_freeze_I) > self.ti:
-                        del self._t0_freeze_I
-                        I += P * Δt
-                except AttributeError:
-                    I += P * Δt
+                kiI += ki * P * Δt
+                kiI = min(max(kiI,cmin),cmax)
 
-            # turn off integral term if P*km is out of the
-            # control range
-            if not (self.min < kp*P < self.max):
-                I = 0
-            else:
-                I = min(max(I, self.min/ki), self.max/ki)
-
-        # clip proportional gain
-        if not (self.min < kp*P < self.max):
-            P = min(max(P, self.min/kp), self.max/kp)
-
-        c = kp*P + ki*I + kd*D
+        c = kp*P + kiI + kd*D
 
         # clip output to specified limits
-        c = min(max(c, self.min), self.max)
+        c = min(max(c,cmin),cmax)
 
         # save parameters to class instance
         self.t0 = t
-        self.I  = I
+        self.kiI = kiI
         self.P0 = P
         self.c  = c
 
@@ -142,4 +119,3 @@ class Controller(object):
             no_overshoot = lambda ku,tu: (.2*ku, 2*(.2*ku)/tu, (.2*ku)*tu/3)
         )
         self.kp,self.ki,self.kd = converter[control_type.lower()](ku,tu)
-
