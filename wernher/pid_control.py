@@ -5,71 +5,74 @@ isclose = np.isclose
 
 class Controller(object):
     '''Single Axis PID Controller'''
-    def __init__(self,set_point=0,limits=(-inf,inf),kp=1,ki=0,kd=0,t0=0):
+    def __init__(self, kp=1, ki=0, kd=0,
+                 set_point=0, deadband=0.001, cmin=-1, cmax=1,
+                 t0=0):
         # set point and control constants
-        self.set_point = set_point
-        self.cmin,self.cmax = limits
         self.kp = kp
         self.ki = ki
         self.kd = kd
+        self.set_point = set_point
+        self.deadband = deadband
+        self.cmin = cmin
+        self.cmax = cmax
 
         # time of previous call, running integral and
         # proportional term of previous call
         self.t0 = t0
-        self.kiI  = 0
+        self.kiI = 0
         self.P0 = 0
 
         # response value of previous call
         self.c = 0
 
     def __call__(self,x,t):
+        # if parameters are all zero or None, return zero
+        if not any([self.kp,self.ki,self.kd]):
+            self.t0 = t
+            return 0
+
+        Δt = t - self.t0
+
         # return previous value if no time has passed
-        if isclose(t - self.t0, 0):
+        if isclose(Δt, 0):
             return self.c
 
-        # bring instance variables into local scope
-        xset = self.set_point
-        cmin = self.cmin
-        cmax = self.cmax
-        kp = self.kp
-        ki = self.ki
-        kd = self.kd
+        P = self.set_point - x
 
-        # if parameters are all zero or None, return set point
-        if not any([kp,ki,kd]):
-            self.t0 = t
-            return xset
+        if abs(P) < self.deadband:
+            kpP = 0
+        else:
+            kpP = self.kp * P
 
-        # bring instance variables into local scope
-        t0 = self.t0
-        kiI  = self.kiI
-        P0 = self.P0
+        if Δt > self.td:
+            kdD = 0
+        else:
+            ΔP = P - self.P0
+            D = ΔP / Δt
+            kdD = self.kd*D
 
-        # calculate PID terms
-        Δt = t - t0
-        P = xset - x
-        ΔP = P - P0
-        D = ΔP / Δt
+        if Δt > self.ti:
+            kiI = 0
+        else:
+            if self.ki > 0:
+                if not (self.cmin < kpP < self.cmax):
+                    kiI = 0
+                else:
+                    kiI = self.kiI + self.ki * P * Δt
+                    kiI = min(max(kiI,self.cmin),self.cmax)
 
-        if self.ki > 0:
-            if not (cmin < kp*P < cmax):
-                kiI = 0
-            else:
-                kiI += ki * P * Δt
-                kiI = min(max(kiI,cmin),cmax)
-
-        c = kp*P + kiI + kd*D
+        self.c = kpP + kiI + kdD
 
         # clip output to specified limits
-        c = min(max(c,cmin),cmax)
+        self.c = min(max(self.c,self.cmin),self.cmax)
 
         # save parameters to class instance
         self.t0 = t
         self.kiI = kiI
         self.P0 = P
-        self.c  = c
 
-        return c
+        return self.c
 
     @property
     def ti(self):
